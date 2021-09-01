@@ -1,0 +1,68 @@
+// CrossFade is a tiny program that shows the use of the
+// SetSpriteOpacity() method to demonstrate how you can fade
+// from one color To another.
+
+// Difficulty level: Beginner to Intermediate
+// Concepts: SetSpriteOpacity()
+// KPL Lines: 43
+// Author: Jamey Friend
+
+Program Crossfade
+// Change opacity to crossfade to a different sprite.
+
+	Method Main()
+
+		Define i As Int
+		Define x As Int
+		Define y As Int
+		
+		Clear (75)
+		
+		PlaySound ("Flag.wav")
+		
+		LoadSprite ("Red", "Red Flag.gif")            // Load 3 flags
+		LoadSprite ("Blue", "Blue Flag.gif")
+		LoadSprite ("Green", "Green Flag.gif")
+		
+		x = (ScreenWidth () - GetSpriteWidth ("Red"))/2
+		y = (ScreenHeight () - GetSpriteHeight ("Red"))/2 - 50
+		
+		MoveSpriteToPoint ("Red", x, y)               // Center them
+		MoveSpriteToPoint ("Blue", x, y)
+		MoveSpriteToPoint ("Green", x, y)
+		
+		SetSpriteOpacity ("Red", 100)                 // Show only red
+		SetSpriteOpacity ("Blue", 0)
+		SetSpriteOpacity ("Green", 0)
+
+		ShowSprite ("Red")
+		ShowSprite ("Blue")
+		ShowSprite ("Green")
+		
+		PenWidth (6)                                  // Draw the flagpole
+		DrawLine (x + 43, y + 40, x + 43, y + 300)
+		
+		Loop 8
+			For i = 0 To 100                          // Crossfade red to blue
+				Delay (25)
+				SetSpriteOpacity ("Red", 100 - i)
+				SetSpriteOpacity ("Blue", i)
+			Next
+			
+			For i = 0 To 100                          // Crossfade blue to green
+				Delay (25)
+				SetSpriteOpacity ("Blue", 100 - i)
+				SetSpriteOpacity ("Green", i)
+			Next
+			
+			For i = 0 To 100                          // Crossfade green to red
+				Delay (25)
+				SetSpriteOpacity ("Green", 100 - i)
+				SetSpriteOpacity ("Red", i)
+			Next
+			
+		End Loop                                      // And do it again
+		
+	End Method
+
+End Program

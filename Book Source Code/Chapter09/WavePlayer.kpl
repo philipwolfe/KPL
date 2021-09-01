@@ -1,0 +1,87 @@
+
+Program WavePlayer
+
+    Define ExplodeWav As Sound 
+    Define TargetLockWav As Sound
+    Define MissileWav As Sound
+
+    Method Main()
+
+	    SetScreenSize (600, 175) 
+
+	    ExplodeWav.LoadFile("Explode.wav")
+	    TargetLockWav.LoadFile("TargetLock.wav")
+	    MissileWav.LoadFile("Missile.wav")
+
+		Define Rect1 As Rectangle
+		Define Rect2 As Rectangle
+		Define Rect3 As Rectangle
+		
+	    TargetLockWav.PlayLoop()
+
+		DrawButton(100, 50)
+		DrawButton(250, 50)
+		DrawButton(400, 50)	
+		
+		DrawText()
+
+	    While True
+	        CheckButtons()
+			Delay(10)
+	    End While
+
+	End Method
+	
+	Method DrawButton(StartX As Integer, StartY As Integer)
+		
+		Define RectangleObject As Rectangle
+		
+		RectangleObject.Color = Black
+		RectangleObject.X = StartX
+		RectangleObject.y = StartY	        
+		RectangleObject.Width = 100
+		RectangleObject.Height = 50
+		RectangleObject.Draw()
+
+		RectangleObject.Color = Gray
+		RectangleObject.X = StartX + 1
+		RectangleObject.y = StartY + 1        
+		RectangleObject.Width = 99
+		RectangleObject.Height = 49
+		RectangleObject.Filled = True
+		RectangleObject.Draw()
+		
+	End Method
+	
+	Method DrawText()
+		
+		Pen(False)
+	    MoveTo(123, 65)
+	    Print("Explode")
+	    MoveTo(275, 65)
+	    Print("Missile")		
+	    MoveTo(430, 65)
+	    Print("Stop")
+		
+	End Method
+	
+	Method CheckButtons()
+		
+		If MouseButton = 1 Then
+			If MouseY >= 50 And MouseY <=100 Then
+				If MouseX >= 100 And MouseX <= 200 Then
+					ExplodeWav.Play()
+				End If
+				If MouseX >= 250 And MouseX <= 350 Then
+				    MissileWav.Play()
+	            End If				
+				If MouseX >= 400 And MouseX <= 500 Then
+					ExplodeWav.Stop()
+	                MissileWav.Stop()
+	            End If
+			End If
+		End If
+		
+	End Method
+
+End Program

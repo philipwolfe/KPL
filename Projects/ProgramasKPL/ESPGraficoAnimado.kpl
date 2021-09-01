@@ -1,0 +1,101 @@
+Program GraficoAnimado
+
+	Structure GraficoAnimado
+		NombreSprite  As String
+		CuentaCuadros  As Int
+		IndiceCuadros  As Int
+	End Structure
+	
+	Method PreparaAnimacionRaton()
+
+		// Creamos una línea de tiempo (Timeline) para la imagen.
+		// Una línea de tiempo es un arreglo de enteros, en el que 
+		// cada elemento del arreglo especifica cuánto tiempo,
+		// en milisegundos, se presenta el cuadro.
+		// Por lo tanto, esta línea de tiempo significa:
+		//	  Muestra el cuadro 1 por 150 milisegundos
+		//	  Muestra el cuadro 2 por 150 milisegundos
+		//	  Muestra el cuadro 3 por 500 milisegundos
+		//	  ... etcetera ...
+		Define LineaDeTiempo As Int[6] = { 150, 150, 500, 150, 150, 1500 }
+		
+		// Se carga la imagen y la colocamos donde lo deseamos
+		LoadSprite( "Mouse", "Mouse.gif" )
+		MoveSpriteToPoint( "Mouse", 0, 220 )
+		ShowSprite( "Mouse" )
+
+		// Le decimos a KPL que la anime, utilizando la línea de tiempo
+		// que definimos anteriormente.  Cuando se concluye la animación, 
+		// esta vuelve a empezar.
+		SetSpriteAnimationTimeline( "Mouse", True, LineaDeTiempo )
+		
+	End Method
+
+	Method Main()
+	
+		SetDeviceCoordinates()
+		
+		Pen( Off )
+		PrintLine( "KPL puede mostrar archivos de imagen GIF animados." )
+		PrintLine( "Puedes animar un GIF cambiando manualmente el índice del cuadro al llamar a SetSpriteActiveFrame(), " )
+		PrintLine( "o KPL puede animarlos determinando una línea de tiempo y llamando a SetSpriteAnimationTimeline()" )
+		PrintLine( " " )
+		PrintLine( "Estas 5 imágenes se animaron manualmente utilizando SetSpriteActiveFrame()" )
+		MoveTo( 0, 200 )
+		PrintLine( "La imagen del ratón se auto-animó usando la línea de tiempo y llamando a SetSpriteAnimationTimeline()" )
+
+		PreparaAnimacionRaton()
+
+		Define ImageNameList As String = "SpaceStation,Quad,Sun,Dino,Train"
+		Define ImageNames As String[]
+		
+		ImageNames = Split( ImageNameList, "," )
+		
+		Define ImageCount As Int = ArrayLength( ImageNames )
+		Define Rotation As Decimal = 0.0
+		Define I As Int
+		
+		Define Imagenes As GraficoAnimado[ ImageCount ]
+		
+		For I = 1 To ImageCount
+		
+			LoadSprite( ImageNames[i], ImageNames[i] + ".gif" )
+
+			Imagenes[i].NombreSprite = ImageNames[i]
+			Imagenes[i].CuentaCuadros = GetSpriteFrameCount( ImageNames[i] )
+			Imagenes[i].IndiceCuadros = 1
+			
+			MoveSpriteToPoint( ImageNames[i], 100 * (I - 1), 100 )
+			ShowSprite( ImageNames[i] )
+			
+		Next
+		
+		While True
+		
+			BeginFrame()
+		
+			For I = 1 To ImageCount
+			
+				If I = 1 Then
+					RotateSprite( Imagenes[i].NombreSprite, Rotation )
+					Rotation = Rotation Mod 360 + 1.0
+				End If
+			
+				If Imagenes[i].IndiceCuadros < Imagenes[i].CuentaCuadros Then
+					Imagenes[i].IndiceCuadros = Imagenes[i].IndiceCuadros + 1
+				Else
+					Imagenes[i].IndiceCuadros = 1
+				End If
+				
+				SetSpriteActiveFrame( Imagenes[i].NombreSprite, Imagenes[i].IndiceCuadros )
+
+			Next
+		
+			RefreshScreen()	
+			Delay( 25 )
+
+		End While
+		
+	End Method
+
+End Program 

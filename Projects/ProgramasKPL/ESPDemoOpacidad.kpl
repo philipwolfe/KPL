@@ -1,0 +1,33 @@
+Program DemoOpacidad
+
+	Method Main()
+	
+		SetDeviceCoordinates()
+	
+		LoadSprite( "Araña", "Spider.png" )
+		MoveSpriteToPoint( "Araña", 100, 100 )
+		ShowSprite( "Araña" )
+		
+		Define I As Int 
+		
+		While True
+
+			While I < 100 
+				SetSpriteOpacity( "Araña", I )
+				RotateSpriteBy( "Araña", 1 )
+				RefreshScreen()
+				I = I + 1
+			End While
+		
+			While I > 0 
+				SetSpriteOpacity( "Araña", I )
+				RotateSpriteBy( "Araña", 1 )
+				RefreshScreen()
+				I = I - 1
+			End While
+		
+		End While
+	
+	End Method
+
+End Program

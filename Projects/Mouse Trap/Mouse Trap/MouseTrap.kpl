@@ -1,0 +1,75 @@
+// MouseTrap is a tiny program that shows how to handle mouse events
+// in a KPL program.  Not also the trick in method JumpTp(), which 
+// allows the pen to be moved to a specific location without drawing
+// a line!
+
+// Difficulty level: Beginner to Intermediate
+// Concepts: Mouse events
+// KPL Lines: 45
+// Author: Jamey Friend
+
+Program MouseTrap
+
+	Define BaitTaken As Bool = False
+	
+	Method Main( )
+		Define i As Int
+		Define NumFrames As Int
+		
+		GetSpritesReady ( )
+		
+		JumpTo ( 40, 360 )
+		PrintLine ( "Click anywhere on the screen," )
+		PrintLine ( "and look at the status bar at" )
+		PrintLine ( "the bottom of the window to see" )
+		PrintLine ( "the (X, Y) point you clicked." )
+		PrintLine ( "But DON'T touch the cheese." )
+		
+		Delay ( 100 )
+		
+		SetMouseEvent ( "Trapper" )
+		
+		// Watch for the mouse actions
+		While Not BaitTaken
+		End While
+		
+		// After the bait is taken, clear the screen
+		HideSprite ( "Trap" )
+		Clear ( White )
+
+		// Set off the explosion (with sound effects)
+		PlaySound ( "nuclear.wav" )
+		
+		NumFrames = GetSpriteFrameCount ( "Explosion" )
+		
+		For i = 1 To NumFrames
+			Delay ( 200 )
+			SetSpriteActiveFrame ( "Explosion", i )
+		Next
+		
+	End Method
+
+	Method JumpTo ( x As Int, y As Int )
+		DrawLine ( x, y, x, y )
+	End Method
+	
+	Method GetSpritesReady ( )
+		LoadSprite ( "Trap", "mousetrap.gif" )
+		MoveSpriteTo ( "Trap", 200, 150 )
+		ShowSprite ( "Trap" )
+		
+		LoadSprite ( "Explosion", "explosion.gif" )
+		MoveSpriteTo ( "Explosion", 170, 0)
+		ShowSprite ( "Explosion" )
+	End Method
+	
+	Method Trapper ( Event As String, x As Int, y As Int, Button As Int )
+		If event = "ButtonUp" Then
+			Status ( "x = " + x + "   y = " + y )
+			If x > 292 And x < 328 And y > 222 And y < 260 Then
+				BaitTaken = True
+			End If
+		End If
+	End Method
+	
+End Program

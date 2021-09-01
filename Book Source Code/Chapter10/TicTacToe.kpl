@@ -1,0 +1,505 @@
+//Program: TicTacToe.kpl
+//Created: 02/07/2008
+//Version: 1.0
+//Author: Jerry Lee Ford, Jr.
+//Description: This Phrogram application is a two-player implementation
+//             of the Tic-Tac-Toe game.
+
+Program TicTacToe
+	
+	//Global constant used to store the name of the game
+	Constant GameTitle As String = "Tic-Tac-Toe"
+	
+	//Global variable used to keep track of whose turn it is
+	Define CurrentPlayer As String = "X"
+	
+	//Global variable used to keep count of the number of moves made
+	Define NoMoves As Integer
+	
+	//Global variables used to keep track of game board square assignments
+	Define SquareA1 As String
+	Define SquareA2 As String
+	Define SquareA3 As String
+	Define SquareB1 As String
+	Define SquareB2 As String
+	Define SquareB3 As String
+	Define SquareC1 As String
+	Define SquareC2 As String
+	Define SquareC3 As String
+	
+	//Sprites associated with each of the game board squares	
+	Define A1 As Sprite
+	Define A2 As Sprite
+	Define A3 As Sprite
+	Define B1 As Sprite
+	Define B2 As Sprite
+	Define B3 As Sprite
+	Define C1 As Sprite
+	Define C2 As Sprite
+	Define C3 As Sprite
+	
+	//This method is responsible for the overall execution of the game		
+	Method Main()
+		
+		ConfigureWindow()  //This method configures the console window
+		
+		//This loop controls overall game play
+		While True
+		
+			DrawGameBoard()       //This method draws the game board
+			
+			ProcessPlayerMoves()  //This method processes player moves
+		
+			Delay(10)             //Briefly pause game play
+			
+		End While
+		
+	End Method
+
+	//This method is responsible for configuring the console window
+	Method ConfigureWindow()
+	
+		SetScreenSize(500, 500)    //Set the screen size to 500x500 pixels
+		SetWindowTitle(GameTitle)  //Display the name of the game in the
+                                   //Window's titlebar
+		
+		Status("Player " + CurrentPlayer + "'s turn")  //Display player turn
+		
+	End Method
+	
+	//This method is responsible for drawing the game board
+	Method DrawGameBoard()
+		
+		//Define a rectangle object and line object
+		Define RectangleObject As Rectangle
+		Define LineObject As Line
+		
+		//Specify the rectangle object's color and line width
+		RectangleObject.Color = DarkBlue
+		RectangleObject.LineWidth = 6
+		
+		//Specify the rectangle object's beginning coordinate
+		RectangleObject.X = 35
+		RectangleObject.y = 25
+		
+		//Specify the rectangle object's width and length
+		RectangleObject.Width = 420
+		RectangleObject.Height = 430
+		
+		RectangleObject.Draw()  //Draw the rectangle
+		
+		//Specify the line object's color and line width
+		LineObject.Color = Black
+		LineObject.LineWidth = 10
+
+		//Draw the Tic-Tac-Toe board's first vertical line
+		LineObject.StartPoint.X = 170
+		LineObject.StartPoint.Y = 30
+		LineObject.EndPoint.X = 170
+		LineObject.EndPoint.Y = 450
+		LineObject.Draw()
+		
+		//Draw the Tic-Tac-Toe board's second vertical line
+		LineObject.StartPoint.X = 320
+		LineObject.StartPoint.Y = 30
+		LineObject.EndPoint.X = 320
+		LineObject.EndPoint.Y = 450
+		LineObject.Draw()
+		
+		//Draw the Tic-Tac-Toe board's first horizontal line
+		LineObject.StartPoint.X = 40
+		LineObject.StartPoint.Y = 170
+		LineObject.EndPoint.X = 450
+		LineObject.EndPoint.Y = 170
+		LineObject.Draw()
+		
+		//Draw the Tic-Tac-Toe board's second horizontal line
+		LineObject.StartPoint.X = 40
+		LineObject.StartPoint.Y = 310
+		LineObject.EndPoint.X = 450
+		LineObject.EndPoint.Y = 310
+		LineObject.Draw()
+	
+	End Method
+	
+	//This method is responsible for accepting and processing player moves
+	Method ProcessPlayerMoves()
+		
+		//Method variable used to keep track of when the game has ended
+		Define GameStatus As Boolean = False
+		
+		//Method variable used to store player input
+		Define PlayerReply As Boolean
+		
+		//Execute only when a player is pressing the left mouse button
+		If MouseButton = 1 Then
+			
+			//Execute only when the pointer is within the bounds of the
+			//first column
+			If MouseX >= 40 And MouseX <= 165 Then
+				
+				//Execute only when the pointer is within the bounds of the
+				//first row
+				If MouseY >= 30 And MouseY <= 165 Then
+					
+					//A player has clicked on the A1 game board square. If it
+					//is not already assigned, the player can have it.
+					If SquareA1 = "" Then
+						SquareA1 = CurrentPlayer    //Assign the square
+						//Load a graphic image representing the player's letter  
+						A1.Load(CurrentPlayer + ".jpg")  
+						A1.X = 45   //Position the display of the graphic image
+						A1.Y = 35   //so that it appears in the A1 square
+						A1.Show()   //Display the image
+						NoMoves += 1  //Add one to the number of moves made
+					Else  //The square is already assigned
+						Return  //Do not make an assignment
+					End If
+					
+				End If
+				
+				//Execute only when the pointer is within the bounds of the
+				//second row
+				If MouseY >= 175 And MouseY <= 305 Then
+					
+					//A player has clicked on the A2 game board square. If it
+					//is not already assigned, the player can have it.
+					If SquareA2 = "" Then
+						SquareA2 = CurrentPlayer    //Assign the square
+						//Load a graphic image representing the player's letter  
+						A2.Load(CurrentPlayer + ".jpg")
+						A2.X = 45   //Position the display of the graphic image
+						A2.Y = 180  //so that it appears in the A2 square
+						A2.Show()   //Display the image
+						NoMoves += 1  //Add one to the number of moves made
+					Else  //The square is already assigned
+						Return  //Do not make an assignment
+					End If
+					
+				End If
+
+				//Execute only when the pointer is within the bounds of the
+				//third row
+				If MouseY >= 315 And MouseY <= 450 Then
+					
+					//A player has clicked on the A3 game board square. If it
+					//is not already assigned, the player can have it.
+					If SquareA3 = "" Then
+						SquareA3 = CurrentPlayer    //Assign the square
+						//Load a graphic image representing the player's letter  
+						A3.Load(CurrentPlayer + ".jpg")
+						A3.X = 45   //Position the display of the graphic image
+						A3.Y = 320  //so that it appears in the A3 square
+						A3.Show()   //Display the image
+						NoMoves += 1  //Add one to the number of moves made
+					Else  //The square is already assigned
+						Return  //Do not make an assignment
+					End If
+					
+				End If
+				
+			End If
+		
+			//Execute only when the pointer is within the bounds of the
+			//Second column
+			If MouseX >= 175 And MouseX <= 315 Then
+				
+				//Execute only when the pointer is within the bounds of the
+				//first row
+				If MouseY >= 30 And MouseY <= 165 Then
+					
+					//A player has clicked on the B1 game board square. If it
+					//is not already assigned, the player can have it.
+					If SquareB1 = "" Then
+						SquareB1 = CurrentPlayer    //Assign the square
+						//Load a graphic image representing the player's letter  
+						B1.Load(CurrentPlayer + ".jpg")
+						B1.X = 190  //Position the display of the graphic image
+						B1.Y = 35   //so that it appears in the B1 square
+						B1.Show()   //Display the image
+						NoMoves += 1  //Add one to the number of moves made
+					Else  //The square is already assigned
+						Return  //Do not make an assignment
+					End If
+					
+				End If
+				
+				//Execute only when the pointer is within the bounds of the
+				//second row
+				If MouseY >= 175 And MouseY <= 305 Then
+					
+					//A player has clicked on the B2 game board square. If it
+					//is not already assigned, the player can have it.
+					If SquareB2 = "" Then
+						SquareB2 = CurrentPlayer    //Assign the square
+						//Load a graphic image representing the player's letter  
+						B2.Load(CurrentPlayer + ".jpg")
+						B2.X = 190  //Position the display of the graphic image
+						B2.Y = 180  //so that it appears in the b2 square
+						B2.Show()   //Display the image
+						NoMoves += 1  //Add one to the number of moves made
+					Else  //The square is already assigned
+						Return  //Do not make an assignment
+					End If
+					
+				End If
+				
+				//Execute only when the pointer is within the bounds of the
+				//third row
+				If MouseY >= 315 And MouseY <= 450 Then
+					
+					//A player has clicked on the B3 game board square. If it
+					//is not already assigned, the player can have it.
+					If SquareB3 = "" Then
+						SquareB3 = CurrentPlayer    //Assign the square
+						//Load a graphic image representing the player's letter  
+						B3.Load(CurrentPlayer + ".jpg")
+						B3.X = 190  //Position the display of the graphic image
+						B3.Y = 320  //so that it appears in the B3 square
+						B3.Show()   //Display the image
+						NoMoves += 1  //Add one to the number of moves made
+					Else  //The square is already assigned
+						Return  //Do not make an assignment
+					End If	
+				End If
+				
+			End If
+			
+			//Execute only when the pointer is within the bounds of the
+			//third column
+			If MouseX >= 325 And MouseX <= 450 Then
+				
+				//Execute only when the pointer is within the bounds of the
+				//first row
+				If MouseY >= 30 And MouseY <= 165 Then
+					
+					//A player has clicked on the C1 game board square. If it
+					//is not already assigned, the player can have it.
+					If SquareC1 = "" Then
+						SquareC1 = CurrentPlayer    //Assign the square
+						//Load a graphic image representing the player's letter  
+						C1.Load(CurrentPlayer + ".jpg")
+						C1.X = 330  //Position the display of the graphic image
+						C1.Y = 35   //so that it appears in the C1 square
+						C1.Show()   //Display the image
+						NoMoves += 1  //Add one to the number of moves made
+					Else  //The square is already assigned
+						Return  //Do not make an assignment
+					End If
+					
+				End If
+				
+				//Execute only when the pointer is within the bounds of the
+				//second row
+				If MouseY >= 175 And MouseY <= 305 Then
+					
+					//A player has clicked on the C2 game board square. If it
+					//is not already assigned, the player can have it.
+					If SquareC2 = "" Then
+						SquareC2 = CurrentPlayer    //Assign the square
+						//Load a graphic image representing the player's letter  
+						C2.Load(CurrentPlayer + ".jpg")
+						C2.X = 330  //Position the display of the graphic image
+						C2.Y = 180  //so that it appears in the C2 square
+						C2.Show()   //Display the image
+						NoMoves += 1  //Add one to the number of moves made
+					Else  //The square is already assigned
+						Return  //Do not make an assignment
+					End If
+				End If
+				
+				//Execute only when the pointer is within the bounds of the
+				//third row
+				If MouseY >= 315 And MouseY <= 450 Then
+					
+					//A player has clicked on the C3 game board square. If it
+					//is not already assigned, the player can have it.
+					If SquareC3 = "" Then
+						SquareC3 = CurrentPlayer    //Assign the square
+						//Load a graphic image representing the player's letter  
+						C3.Load(CurrentPlayer + ".jpg")
+						C3.X = 330  //Position the display of the graphic image
+						C3.Y = 320  //so that it appears in the C3 square
+						C3.Show()   //Display the image
+						NoMoves += 1  //Add one to the number of moves made
+					Else  //The square is already assigned
+						Return  //Do not make an assignment
+					End If	
+				End If
+				
+			End If
+			
+			//Call the method responsible for determining when the game is over
+			GameStatus = CheckForGameOver()
+			
+			//Prompt the players to play a new game if the current game has ended
+			If GameStatus = True Then
+				
+				PlayerReply = Confirm("Would you like to play another round?", GameTitle)
+				
+				If PlayerReply = True Then  //The Players have elected to play
+					ClearBoard()            //Reset the game board
+				Else                        //The players have elected to stop playing
+					Stop()                  //Terminate the application
+				End If
+			Else
+				SwitchPlayerTurn()  //Switch player turns if the game is not over
+			End If	
+			
+		End If
+			
+	End Method
+	
+	//This method is responsible for handling the switching of player turns
+	Method SwitchPlayerTurn()
+		
+		//If Player X just moved then make it Player O's turn
+		If CurrentPlayer = "X" Then
+			CurrentPlayer = "O"  //Swap player turns
+			Status("Player " + CurrentPlayer + "'s turn")  //Notify the players
+			Return
+		End If
+		
+		//If Player O just moved then make it Player X's turn
+		If CurrentPlayer = "O" Then
+			CurrentPlayer = "X"  //Swap player turns
+			Status("Player " + CurrentPlayer + "'s turn")  //Notify the players
+			Return
+		End If
+		
+	End Method
+	
+	//This function is responsible for determining if the current game has been
+	//won, lost, or tied
+	Function CheckForGameOver() As Boolean
+	
+		//Check vertically for a winner on the first column
+		If SquareA1 = CurrentPlayer And SquareA2 = CurrentPlayer And SquareA3 = CurrentPlayer Then
+			//Notify the player that the game is over
+			Alert("Player " + CurrentPlayer + " has won!", GameTitle)
+			Status("")  //Clear the status bar
+			Return True
+		End If
+		
+		//Check vertically for a winner on the second column
+		If SquareB1 = CurrentPlayer And SquareB2 = CurrentPlayer And SquareB3 = CurrentPlayer Then
+			//Notify the player that the game is over
+			Alert("Player " + CurrentPlayer + " has won!", GameTitle)
+			Status("")  //Clear the status bar
+			Return True
+		End If
+		
+		//Check vertically for a winner on the third column
+		If SquareC1 = CurrentPlayer And SquareC2 = CurrentPlayer And SquareC3 = CurrentPlayer Then
+			//Notify the player that the game is over
+			Alert("Player " + CurrentPlayer + " has won!", GameTitle)
+			Status("")  //Clear the status bar
+			Return True
+		End If
+		
+		//Check horizontally for a winner on the first row
+		If SquareA1 = CurrentPlayer And SquareB1 = CurrentPlayer And SquareC1 = CurrentPlayer Then
+			//Notify the player that the game is over
+			Alert("Player " + CurrentPlayer + " has won!", GameTitle)
+			Status("")  //Clear the status bar
+			Return True
+		End If
+		
+		//Check horizontally for a winner on the second row
+		If SquareA2 = CurrentPlayer And SquareB2 = CurrentPlayer And SquareC2 = CurrentPlayer Then
+			//Notify the player that the game is over
+			Alert("Player " + CurrentPlayer + " has won!", GameTitle)
+			Status("")  //Clear the status bar
+			Return True
+		End If
+		
+		//Check horizontally for a winner on the third row
+		If SquareA3 = CurrentPlayer And SquareB3 = CurrentPlayer And SquareC3 = CurrentPlayer Then
+			//Notify the player that the game is over
+			Alert("Player " + CurrentPlayer + " has won!", GameTitle)
+			Status("")  //Clear the status bar
+			Return True
+		End If
+
+		//Check diagonally for a winner from the top-left corner to the 
+		//bottom-right corner
+		If SquareA1 = CurrentPlayer And SquareB2 = CurrentPlayer And SquareC3 = CurrentPlayer Then
+			//Notify the player that the game is over
+			Alert("Player " + CurrentPlayer + " has won!", GameTitle)
+			Status("")  //Clear the status bar
+			Return True
+		End If
+	
+		//Check diagonally for a winner from the bottom-left corner to the 
+		//top-right corner
+		If SquareA3 = CurrentPlayer And SquareB2 = CurrentPlayer And SquareC1 = CurrentPlayer Then
+			Alert("Player " + CurrentPlayer + " has won!", GameTitle)
+			Status("")  //Clear the status bar
+			Return True
+		End If
+		
+		//If none of the other possible combination has resulted in a winner check
+		//to see if all nine squares have been selected and declare a tie
+		If NoMoves = 9 Then
+			//Notify the player that the game is over
+			Alert("The game has ended in a tie!", GameTitle)
+			Status("")  //Clear the status bar
+			Return True
+		End If
+		
+		Return False  //The game has not been won so game play continues
+		
+	End Function
+	
+	//This method set the game board to back to its initial state
+	Method ClearBoard()
+	
+		//Un-assign any game board square that was selected in the last
+		//game and hide the sprite that was displayed on it
+		If SquareA1 <> "" Then
+			SquareA1 = ""
+			A1.Hide()
+		End If
+		If SquareA2 <> "" Then
+			SquareA2 = ""
+			A2.Hide()
+		End If
+		If SquareA3 <> "" Then
+			SquareA3 = ""
+			A3.Hide()
+		End If
+		If SquareB1 <> "" Then
+			SquareB1 = ""
+			B1.Hide()
+		End If
+		If SquareB2 <> "" Then
+			SquareB2 = ""
+			B2.Hide()
+		End If
+		If SquareB3 <> "" Then
+			SquareB3 = ""
+			B3.Hide()
+		End If
+		If SquareC1 <> "" Then
+			SquareC1 = ""
+			C1.Hide()
+		End If
+		If SquareC2 <> "" Then
+			SquareC2 = ""
+			C2.Hide()
+		End If
+		If SquareC3 <> "" Then
+			SquareC3 = ""
+			C3.Hide()
+		End If
+		
+		NoMoves = 0   //Reset the number of player moves to zero
+		
+		CurrentPlayer = "X"  //Make Player X the default player
+		
+		//Update the status bar
+		Status("Player " + CurrentPlayer + "'s turn")
+		
+	End Method
+	
+End Program

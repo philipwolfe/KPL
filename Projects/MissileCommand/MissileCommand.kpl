@@ -1,0 +1,1503 @@
+Program MissileCommand
+// Difficulty: Intermediate
+// Concepts: Animation, Lookup tables
+// Lines of KPL: 1485 (including comments and spacing)
+// Author: Larry Serflaten ( larry@kidsprogramminglanguage.com )
+
+// Missile Command:
+// Defend your missile silos and cities at all costs, or risk
+// total annhilation!  Knock down all invaders by launching missiles
+// at them before they reach their target.  Use the mouse to aim
+// and shoot.
+
+// During alien attacks you can press the Space bar to pause the game.
+
+// Missile command was a 1980's era arcade game from Atari.
+// The reproduction here is a close facimile of the original
+// arcade version.  Some liberties were taken to make the
+// game fit well within the KPL language and to allow for 
+// longer play time.
+
+
+Structure Ordinance
+	OX As Decimal  		// Origin
+	OY As Decimal
+	PX As Decimal  		// Position
+	PY As Decimal
+	DX As Decimal  		// Direction
+	DY As Decimal
+	TX As Decimal       // Target
+	TY As Decimal
+	Index As Int  		// kTargetsX index
+	StartTick As Int    // Start time
+	Parent As Int
+End Structure
+
+Structure Kaboom
+	Size As Decimal		// Current blast size
+	Tick As Int			// Start time
+	Busy As Bool		// Still exploding
+	X As Int
+	Y As Int
+End Structure
+
+// Operational constants that effect game play
+// (Using extreme values may cause errors in the game)
+Define kCityBonusTrigger As Int = 10000
+Define kPlayerSpeed As Decimal = 0.25    // use 0.2 to 0.5
+Define kDroneSpeed As Decimal = 30       // use 20 to 80
+Define kBlastSize As Decimal = 40        // use 25 to 75 
+
+// --- Do not alter the following constants  ---
+
+// Screen constants
+Define kOriginY As Int  = 38
+Define kTargetY As Int = 440
+Define kTargetsX As Int [9] = {65, 137, 207, 277, 350, 423, 493, 563, 635 }
+// Color() cycle constants for explosions
+Define BlastColors As Int[6] = {7, 2, 107, 136, 103, 6, 137}
+
+// Color scheme array indexes
+Define kSky As Int = 1
+Define kGnd As Int = 2
+Define kMissile As Int = 3
+Define kAlien As Int = 4
+Define kIn As Int = 5
+Define kOut As Int = 6
+
+// Intelligent aiming constants
+Define kAimSilo As Int = 1
+Define kAimCity As Int = 2
+Define kAimAny As Int = 3
+Define kAimSmart As Int = 8
+
+// --- Game variables section  ---
+
+Var ColorScheme As Int[]	// Current colors array
+Var Silo As Int[3]			// Missile silos
+Var Bomb As Ordinance[90]	// Incoming
+Var Shot As Ordinance[50]	// Outbound
+Var Ship As Ordinance[20]	// Aliens
+Var Blast As Kaboom[50]		// Explosions
+Var LiveTargets As Bool[9] = {True, True, True, True, True, True, True, True, True}
+
+Var DroneAttack As Bool
+Var ShotCount As Int
+Var ShotX As Int
+Var ShotY As Int
+Var ShipCount As Int
+Var BombCount As Int
+Var ExplodeDelay As Int
+Var OldTick As Int
+Var Clock As Int
+Var Level As Int
+Var Score As Int
+Var Flash As Int
+Var Wave As Int
+Var Priority As Int
+Var Hold As Int
+Var Speed As Decimal
+Var Bonus As Int = 1
+Var UserLevel As Int = 1
+Var City As Int = kCityBonusTrigger 
+
+
+// APPLICATION ENTRY POINT	
+	
+Method Main()
+	SetScreensize(700, 500)
+	Speed = .025
+	While Level < 25
+
+		// Calculate bonus multiplier
+		Bonus = ((UserLevel - 1) / 2) + 1
+		If Bonus > 10 Then
+			Bonus = 10
+		End If
+
+		// Levels have different colors 
+		SetColors()
+		NewLevel()
+		
+		// Each level can have up to 2 waves
+		For wave = 1 To 2
+			NewWave()
+			SetAttack()
+			PlayLevel()
+			CheckPlayer()
+		Next
+
+		// Level end: Add Score checking for cities present
+		If TallyScore() Then
+			Level = 100  // Game end (cities gone)
+		End If
+		
+		// Increment level, loop back until all cities are gone 
+		UserLevel = UserLevel + 1
+		Level = Level + 1
+		If Level = 20	Then
+			Level = 8
+		End If
+
+		// Increase game speed each level
+		Speed = (Speed * 1.01) + .002
+		If (UserLevel Mod 10) = 0 Then
+			Speed = Speed * .75
+		End If
+		
+	End While
+
+	TheEnd()
+
+End Method
+
+
+// MOUSE INPUT
+
+Method MouseInput(Event As String, X As Int, Y As Int, Button As Int )
+	If Event = "ButtonDown" Then
+	    If Y > kOriginY And Y < (kTargetY - (kBlastSize / 2)) Then
+			ShotX = X
+			ShotY = Y
+		Else
+			AddSound(8, 200, "PowerDown.wav")
+		End If
+	End If
+End Method
+
+Method MouseLock(Event As String, X As Int, Y As Int, Button As Int )
+	// Used to refuse mouse input during scoring phase 
+End Method
+
+
+// GAME LEVEL LOGIC
+
+Method PlayLevel()
+Var Continue As Bool
+
+	// Clear out bonus message, allow mouse input
+	ClearScreen()
+	SetMouseEvent("MouseInput")
+	
+	// Game needed a stoppable clock to support PAUSE
+	// otherwise game would continue to play even while paused
+	Clock = 0
+	Hold = -1
+	ExplodeDelay = 0
+	OldTick = TickCount()
+
+	Continue = True
+	While Continue
+		Clock = Clock + (TickCount() - OldTick)
+		OldTick = TickCount()
+		
+		BeginFrame()
+		If ShotY > 0 Then
+			FireShot()
+			ShotY = -1
+		End If
+		// Frame mechanics
+		EraseShips()
+		DoInbound()
+		DoOutbound()
+		MoveShips()
+		DoExplosions()
+	    DrawScore(False)
+		RefreshScreen()
+		Continue = StillBusy()
+		// Pause stops here when used
+		DoPause()
+	End While
+
+	// Mouse input locked out for score tally
+	SetMouseEvent("MouseLock")
+
+End Method
+
+Method NewWave()
+Var idx As Int
+Var lenBomb As Int = ArrayLength(Bomb)
+Var lenBlast As Int = ArrayLength(Blast)
+Var lenShot As Int = ArrayLength(Shot)
+Var len As Int = Max(Max(lenBomb, lenShot), lenBlast)
+
+	// Reset Inbound, OutBound, and Explosion structures
+	For idx = 1 To len
+		If idx <= lenBomb Then
+			Bomb[idx].StartTick = 0
+			Bomb[idx].Parent = 0
+			Bomb[idx].PY = kOriginY
+		End If
+		If idx <= lenShot Then
+			Shot[idx].StartTick = 0
+		End If
+		If idx <= lenBlast Then
+			Blast[idx].Busy = False
+		End If
+	Next
+	BombCount = 0
+	ShotCount = 0
+End Method
+
+Method NewLevel()
+Var idx As Int
+Var lenShip As Int = ArrayLength(Ship)
+
+	// Reset all ships
+	For idx = 1 To lenShip
+		Ship[idx].StartTick = 0
+		Ship[idx].Parent = 0
+		Ship[idx].DY = 0
+	Next
+	ShipCount = 0
+	
+	// Reset missile silos
+	Silo[1] = 10
+	Silo[2] = 10
+	Silo[3] = 10
+	LiveTargets[1] = True
+	LiveTargets[5] = True
+	LiveTargets[9] = True
+	
+	// Show Bonus message
+	DrawWorld()
+	For idx = 1 To 4
+		AddSound(10, 0, "TargetLock.wav")
+		Delay(600)
+	Next
+End Method
+
+
+// LEVEL MECHANICS
+
+Method FireShot()
+Var msl As Int
+Var ord As Ordinance
+
+
+	// Which silo launches missile?
+	If ShotX <= (kTargetsX[3] + 30) And Silo[1] > 0 Then
+		msl = 1
+	End If
+	If ShotX >= (kTargetsX[7] - 30) And Silo[3] > 0 Then
+		msl = 3
+	End If
+	
+	If msl = 0 Then
+		If Silo[2] > 0 Then
+			msl = 2
+		Else
+			If ShotX <= kTargetsX[5] And Silo[1] > 0 Then
+				msl = 1
+			End If
+			If ShotX >= kTargetsX[5] And Silo[3] > 0 Then
+				msl = 3
+			End If
+			If msl = 0 Then
+				If Silo[3] > 0 Then
+					msl = 3
+				Else
+					If Silo[1] > 0 Then
+						msl = 1
+					End If
+				End If
+			End If
+		End If
+	End If
+	
+	// If none can launch, exit out
+	If msl = 0 Then
+		AddSound(8, 200, "MenuBeep.wav")
+		Return
+	End If
+	
+	// Use next missile from Shot array, fill values 
+	ShotCount = ShotCount + 1
+	ord = Shot[ShotCount]
+	ord.OX = kTargetsX[msl * 4 - 3]
+	ord.OY = 433
+	ord.TX = ShotX
+	ord.TY = ShotY
+	ord.StartTick = Clock
+	CalcDelta(ord, kPlayerSpeed)
+	
+	// Add marker to screen
+	MoveTo(ShotX, ShotY)
+	Color(ColorScheme[kMissile])
+	PenWidth(1)
+    Circle(3, False)
+	Pen(False)
+
+	// Remove missle from silo
+	Silo[msl] = Silo[msl] - 1
+	// Mark as empty if missiles are gone
+	LiveTargets[((msl * 4) - 3)] = Silo[msl] > 0
+	// Update screen, play launch sound
+	DrawSilo(msl)
+    AddSound(4, 200, "missile.wav")
+	
+End Method
+
+Method DoInbound()
+Var idx As Int
+Var xpl As Int 
+Var time As Decimal
+Var det As Bool 
+Var ord As Ordinance
+
+	
+	For idx = 1 To BombCount
+		Pen(False)
+		ord = Bomb[idx]
+		// Test if bomb is in use, ready for deployment
+		If ord.StartTick > 0 And ord.StartTick < Clock Then
+			// Check if its a cluster bomb (splits off from parent)
+			If ord.Parent > 0 And Bomb[ord.Parent].StartTick > 0 Then
+				If Abs(Bomb[ord.Parent].PY - 250) < 20 Or (Random(1,10) = 2 And Abs(Bomb[ord.Parent].PY - 150) < 10) Then 
+					ord.OX = Bomb[ord.Parent].PX
+					ord.OY = Bomb[ord.Parent].PY
+					CalcDelta(ord, Speed)
+					ord.StartTick = Clock 
+					ord.Parent = 0
+				End If
+			End If
+			// A normal bomb
+			If ord.Parent = 0 Then
+				// Calculate position
+				time = (Clock - ord.StartTick)
+				If time < 10 Then
+					time = 10
+				End If
+				ord.PX = ord.OX + (ord.DX * time)
+				ord.PY = ord.OY + (ord.DY * time)
+				// Draw missile line
+				PenWidth(2)
+				Color(ColorScheme[kIn])
+				DrawLine(ord.OX, ord.OY, ord.PX, ord.PY)
+				
+				// Check if at target
+				det = (Abs(ord.TX - ord.PX) < 8 And Abs(ord.TY - ord.PY) < 8) Or (ord.PY > kTargetY)
+				// Check if hit
+				If Not det Then
+					det = NearExplosion(ord.PX, ord.PY)
+					If det Then
+						Score = Score + 25 * Bonus
+						DrawScore(True)
+					End If
+				
+				End If
+				
+				// Detonate bomb?
+				If det Then
+					//Setup Explosion
+					InitializeExplosion(ord.PX, ord.PY)
+					// Erase missile line
+					Color(ColorScheme[kSky])
+					PenWidth(4)
+					MoveTo(ord.OX, ord.OY)
+					Circle(2, True)
+					DrawLine(ord.OX, ord.OY, ord.PX, ord.PY)
+					// Mark as not used
+					ord.StartTick = 0
+					ord.Parent = 0
+					// Test target hit
+					If Abs(ord.TY - ord.PY) < 8 Then
+						BlowUpTarget(ord.Index)
+					End If
+				End If
+			End If
+		End If	
+	Next
+	
+End Method
+
+Method DoOutbound()
+Var idx As Int
+Var xpl As Int 
+Var len As Int = ArrayLength(Shot)
+Var time As Decimal
+Var ord As Ordinance
+
+	
+	For idx = 1 To ShotCount
+		Pen(False)
+		ord = Shot[idx]
+		If ord.StartTick > 0 Then
+			// Calculate position
+			time = (Clock - ord.StartTick)
+			If time < 10 Then
+				time = 10
+			End If
+			ord.PX = ord.OX + (ord.DX * time)
+			ord.PY = ord.OY + (ord.DY * time)
+			// Draw missile line
+			PenWidth(2)
+			Color(ColorScheme[kOut])
+			DrawLine(ord.OX, ord.OY, ord.PX, ord.PY)
+			// Check if at target
+			If (Abs(ord.tx - ord.Px) < 8 And Abs(ord.tY - ord.PY) < 8) Or (ord.PY < kOriginY) Or (ord.PX < 0) Or (ord.PX > 700) Then
+				//Setup Explosion
+				InitializeExplosion(ord.TX, ord.TY)
+				// Erase missile line
+				Color(ColorScheme[kSky])
+				PenWidth(4)
+				DrawLine(ord.OX, ord.OY, ord.PX, ord.PY)
+				// Mark as not used
+				ord.StartTick = 0
+			End If
+		End If	
+	Next
+	
+End Method
+
+Method MoveShips()
+Var idx As Int
+Var ord As Ordinance
+Var tst As Int 
+
+	DroneAttack = False
+	For idx = 1 To ShipCount
+		ord = Ship[idx]
+		// Test for active ship
+		If ord.StartTick > 0 Then
+			If ord.StartTick < Clock Then
+				// Process active ship
+				ord.PX = ord.PX + ord.DX
+				ord.PY = ord.PY + ord.DY
+				DrawShip(idx, False)
+				
+				If Abs(ord.Parent) < 4 Then
+					// Alien ships can fire missiles
+					For tst = 2 To 8
+						If (Abs(ord.PX - kTargetsX[tst]) <= Abs(ord.DX)) And Random(7, 13) = 10 Then
+							AddBomb(Random(1, (Level / 8) + 1), 0, -1 * idx, kAimAny + kAimSmart)
+						End If
+					Next
+				Else
+					// Drone attack logic
+					DroneAttack = True
+
+					// PickNearestTarget
+					If (ord.PY > 350) Or (ord.PY > 200 And Random(1, 20) = 10) Then
+						PickNearestTarget(ord)
+					End If
+					
+					// MoveTowardTarget
+					If (ord.PY > 300) Or (Random(1, 5) = 3 And (ord.PY > 100  Or ord.DY < 0 )) Then
+						MoveTowardTarget(ord)
+					End If
+					
+					MoveAwayFromBlast(ord)
+				End If
+			End If	
+		End If
+	Next
+
+End Method
+
+Method DoExplosions()
+Var idx As Int
+Var len As Int = ArrayLength(Blast)
+Var xpl As Kaboom
+Var blk As Int
+Var siz As Decimal 
+
+	// Restrict processing to once every so often
+	// to slow flash colors
+	If Clock <  ExplodeDelay Then
+		Return
+	End If
+	ExplodeDelay = Clock + 30
+	
+	Flash = ((Flash + 1) Mod 7) + 1
+	Pen(False)
+	For idx = 1 To len
+		xpl = Blast[idx]
+		If xpl.Busy Then
+		
+			MoveTo(xpl.X, xpl.Y)
+			// Calculate size based on time from detonation
+			xpl.Size = Sin((Clock - xpl.tick) / 400.0) * kBlastSize
+			
+			// Draw sky (to erase explosion)
+			If Clock - xpl.Tick > 550 Then
+				siz = Sin((Clock - xpl.Tick - 120) / 400.0) * kBlastSize
+				Color(ColorScheme[kSky])
+				Circle(siz, True)
+				xpl.tick = xpl.Tick + 25
+			End If
+
+			// Draw explosion
+			If Clock - xpl.Tick <  1200 Then
+				Color(BlastColors[Flash])
+				Circle(xpl.Size , True)
+			End If
+			
+			// Stop
+			If Clock - xpl.Tick > 1300 Then
+				xpl.Busy = False
+			End If
+		End If
+	Next	
+
+End Method
+
+Method DoPause()
+	If IsKeyDown("Space") Then
+		// Wait for release
+		While IsKeyDown("Space")
+			RefreshScreen()
+		End While
+		// Print PAUSE message
+		SetFont("Arial", 64, True, False, False) 
+		Color(137)
+		Pen(False)
+		MoveTo(100, 100)
+		Rectangle(500, 200, True)
+		MoveTo(120, 120)
+		Color(20)
+		Rectangle(460, 160, True)
+		Color(139)
+		MoveTo(160, 150)
+		Print("PAUSED")
+		RefreshScreen()
+		// Wait for press and release
+		While IsKeyDown("Space") = False
+			RefreshScreen()
+		End While
+		While IsKeyDown("Space")
+			RefreshScreen()
+		End While
+		// Clear PAUSE message and start clock at current value
+		ClearScreen()
+		OldTick = TickCount()
+	End If
+End Method
+
+
+// COMPLEX FUNCTIONS
+
+Function TallyScore() As Bool
+Var s As Int 
+Var x As Int
+Var more As Int 
+Var scr As Int 
+
+	SetFont("Arial", 18, True, False, False)
+	Pen(False)
+	
+	// Tally missiles
+	x = 200
+	For s = 1 To 3
+		While Silo[s] > 0
+			Silo[s] = Silo[s] - 1
+			Score = Score + (Bonus * 5)
+			scr = scr + (Bonus * 5)
+			DrawSilo(s)
+			DrawMissile(x, 160, True)
+			DrawScore(True)
+			ScreenPrint(150, 150, scr)
+			AddSound(10, 0, "mortar1.wav")
+			RefreshScreen()
+			Delay(80)
+			x = x + 12
+		End While
+	Next
+
+	// Tally cities
+	x = 215
+	LiveTargets[5] = False
+	scr = 0
+	For s = 2 To 8
+		If LiveTargets[s] Then
+			more = more + 1
+			scr = scr + (100 * Bonus)
+			Score = Score + (100 * Bonus)
+			EraseCity(s)
+			DrawCity(x, 205)
+			DrawScore(True)
+			ScreenPrint(150, 200, scr)
+			AddSound(10, 0, "mortar2.wav")
+			RefreshScreen()
+			Delay(300)
+			x = x + 60
+		End If
+	Next
+	
+	// Add bonus cities
+	scr = 0
+	LiveTargets[5] = True
+	While (City <= Score) And (more < 6)
+	
+		x = Random(2, 8)
+		While LiveTargets[x] = True
+			x = Random(2, 8)
+		End While
+		scr = scr + 1
+		more = more + 1
+		City = City + kCityBonusTrigger
+		LiveTargets[x] = True
+		EraseCity(x)
+		DrawCity(kTargetsX[x], 436)
+	End While
+	
+	// Print ADDED message
+	If scr > 0 Then
+		AddSound(10, 1, "MessageBeep.wav")
+		Color(ColorScheme[kMissile])
+		If scr = 1 Then
+			MoveTo(265, 300)
+			Print(scr + " CITY ADDED")
+		Else
+			MoveTo(250, 300)
+			Print(scr + " CITIES ADDED")
+		End If
+	End If
+	
+	// Let player see it a while
+	Delay(2000)
+
+	Return (more = 0)
+End Function
+
+Function FindFirstBlast() As Int
+Var idx As Int = ArrayLength(Blast)
+	// Return next available blast index
+	While (Blast[idx].Busy = True) And (idx > 1)
+		idx = idx - 1
+	End While
+	Return idx
+End Function
+
+Function NearExplosion(X As Int, Y As Int) As Bool
+Var rsl As Bool
+Var idx As Int
+Var len As Int = ArrayLength(Blast)
+Var dx As Decimal
+Var dy As Decimal
+Var hyp As Decimal
+
+	// Returns True if X, Y is near any explosion
+	For idx = 1 To len
+		If Blast[idx].Busy Then
+			dx = Blast[idx].X - X
+			dy = Blast[idx].Y - Y
+			hyp = Sqrt(dx * dx + dy * dy) * 2
+			rsl = rsl Or (hyp < Blast[idx].size)
+		End If
+	Next
+	Return rsl
+End Function
+
+Function StillBusy() As Bool
+Var idx As Int
+Var len As Int = ArrayLength(Blast)
+
+	// Wave won't end until all bombs have been dropped
+	// and current animations are completed.  (missiles, explosions, etc.)
+	For idx = 1 To len
+		If Blast[idx].Busy Then
+			Return True
+		End If
+	Next
+	For idx = 1 To BombCount
+		If bomb[idx].Parent = 0 And Bomb[idx].StartTick > 0 Then
+			Return True
+		End If
+	Next
+	For idx = 1 To ShotCount
+		If Shot[idx].Parent = 0 And Shot[idx].StartTick > 0 Then
+			Return True
+		End If
+	Next
+	For idx = 1 To ShipCount
+		If  Ship[idx].StartTick > 0 Then
+			Return True
+		End If
+	Next	
+
+	Return False
+End Function
+
+
+// COMPLEX TASKS
+
+Method BlowUpTarget(Index As Int)
+	// Remove target from active list
+	If LiveTargets[Index] = True Then
+		AddSound(10, 2500, "CityBomb.wav")
+		LiveTargets[Index] = False
+	End If
+	// Empty silo if hit
+	If (Index = 1) And (Silo[1] > 0 ) Then
+		Silo[1] = 0
+		DrawSilo(1)
+	End If
+	If  (Index = 5) And (Silo[2] > 0 ) Then
+		Silo[2] = 0
+		DrawSilo(2)
+	End If
+	If  (Index = 9) And (Silo[3] > 0 ) Then
+		Silo[3] = 0
+		DrawSilo(3)
+	End If
+End Method
+
+Method MoveAwayFromBlast(Drone As Ordinance)
+Var idx As Int
+Var dx As Decimal
+Var dy As Decimal
+Var hyp As Decimal
+Var minHyp As Decimal
+Var len As Int = ArrayLength(Blast)
+
+	minHyp = 1000
+	For idx = 1 To len
+		If Blast[idx].Busy Then
+			dx = Drone.PX - Blast[idx].X
+			dy = Drone.PY - Blast[idx].Y
+			hyp = Sqrt(dx * dx + dy * dy)
+			// Avoid nearest blast
+			If hyp < minHyp Then
+				minHyp = hyp
+				If hyp < Blast[idx].Size * 1.2 Then
+					Drone.DY = Speed * kDroneSpeed
+					If dy < 0 Then
+						Drone.DY = Drone.DY * -1
+					End If
+					Drone.DX = 0
+					If dx < -2 Then
+						Drone.DX = Speed * kDroneSpeed * -1
+					End If
+					If dx > 2 Then
+						Drone.DX = Speed * kDroneSpeed
+					End If
+				End If
+			End If
+		End If
+	Next
+	
+End Method
+
+Method MoveTowardTarget(Drone As Ordinance)
+Var trg As Int
+Var mov As Decimal[3] = {-1.0 * kDroneSpeed * Speed, 0.0, 1.0 * kDroneSpeed * Speed}
+
+	trg = kTargetsX[Drone.Index]
+	Drone.DY = Speed * kDroneSpeed
+	
+	// Screen boundries
+	If (Drone.PX < 3) Then
+		Drone.DX = mov[3]
+	End If
+	If (Drone.PX > 697) Then
+		Drone.DX = mov[1]
+	End If
+	
+	// Very occasional directional change
+	If Random(1, 50) = 21 Then 
+		Drone.DX = mov[Random(1, 3)]
+	End If
+	
+	// Occasional direction change toward target
+	If (Random(1, 10) = 7) Or (Drone.PY > 380) Then 	
+		If Drone.PX > (trg + 5) Then
+			Drone.DX = mov[1]
+		End If
+		If Drone.PX < (trg - 5) Then
+			Drone.DX = mov[3]
+		End If
+	End If
+End Method
+
+Method PickNearestTarget(Drone As Ordinance)
+Var trg As Int
+Var idx As Int
+Var dif As Int
+Var pik As Int 
+
+	// Store current target
+	pik = Drone.Index
+	dif = Abs(Drone.PX - kTargetsX[pik])
+	
+	// Check for any closer
+	For idx = 2 To 8
+		If LiveTargets[idx] Then
+			If (Abs(Drone.PX - kTargetsX[idx])) < dif Then
+				pik = idx
+				dif = Abs(Drone.PX - kTargetsX[pik])
+			End If
+		End If
+	Next
+	// Save target
+	Drone.Index = pik
+	Drone.TX = kTargetsX[pik]
+
+End Method
+
+Method SetAttack()
+Var mul As Int = (UserLevel / 10) + 1
+Var lvl As Int = Level Mod 10
+Var run As Int
+Var dly As Int 
+Var rnd As Int
+
+	// Attack logic
+	If Wave = 1 Then
+		If lvl < 3 Then
+			AddBomb(mul + 2, 0, 0, kAimSmart + kAimAny)
+			If (UserLevel > 1) And lvl = 0 Then
+				dly = 0
+				For run = 1 To mul
+					AddBomb(1, dly, 0, kAimSmart + kAimCity)
+					dly = dly + 3000
+					AddBomb(1, dly, 0, kAimSilo)
+					dly = dly + 3000
+					AddBomb(mul, dly, 0, kAimSmart + kAimAny)
+					dly = dly + 4000
+				Next
+			End If
+		Else
+			If lvl < 7 Then
+				AddBomb(mul + 3, 200, 0, kAimSmart + kAimAny)
+			Else
+				AddBomb(mul * 2, 2000, 0, kAimSmart + kAimAny)
+				AddBomb(mul + 2, 8000, 0, kAimSmart + kAimAny)
+			End If
+		End If
+		If (lvl = 4) Or (lvl = 8) Then
+			For run = 1 To mul
+				AddDrone(Random(0, 3) * 1000)
+			Next
+		End If
+		If lvl < 2 Or lvl = 8 Then
+			AddShip(Random(1, 3) * 1000)
+		End If
+		dly = 1000
+		For run = 1 To mul
+			If lvl > 0 Then
+				AddBomb(1, dly, 0, kAimCity)
+				dly = dly + 4000
+				AddBomb(mul, dly, 0, kAimAny)
+				dly = dly + 4000
+			End If
+			If lvl > 4 Then
+				AddBomb(1, dly, 0, kAimSmart + kAimCity)
+				dly = dly + 4000
+				AddBomb(mul, dly, 0, kAimSmart + kAimAny)
+				dly = dly + 6000
+			End If
+		Next
+	End If
+	
+	If Wave = 2 Then
+		If lvl = 2 Or lvl = 3 Then
+			dly = 0
+			For run = 1 To mul
+				AddBomb(1, dly, 0, kAimSmart + kAimCity)
+				dly = dly + 2000
+				AddBomb(1, dly, 0, kAimAny)
+				dly = dly + 4000
+			Next
+		End If
+
+		If lvl = 7  Or Lvl = 9 Then
+			AddBomb(mul, 0, 0, kAimSmart + kAimSilo)
+			AddShip(Random(0, 3) * 1000)
+			If lvl = 9 Then
+				dly = 1000
+				For run = 1 To (mul / 2) + 1
+					AddDrone(dly)
+					dly = dly + 4000
+				Next
+			End If
+			dly = 0
+			For run = 1 To mul
+				AddBomb(2, dly, 0, kAimSmart + kAimCity)
+				dly = dly + 3000
+				AddBomb(mul, dly, 0, kAimSmart + kAimSilo)
+				dly = dly + 6000
+			Next
+		End If
+		If lvl = 4 Then
+			dly = 10
+			For run = 1 To mul
+				AddBomb(2, dly / 2, 0, kAimSmart + kAimCity)
+				AddDrone(dly)
+				dly = dly + 5000
+			Next
+		End If
+	
+	End If
+	
+	// Cluster bombs (split from other bombs)
+	dly = BombCount
+	rnd = Random(1, (UserLevel / 4) + 1) 
+	For run = 1 To rnd
+		AddBomb(1, 0, Random(1, dly), kAimSmart + kAimCity)
+	Next
+
+End Method
+
+Method AddShip(Time As Int)
+Var ord As Ordinance
+Var img As Int
+Var pos As Int
+Var mov As Int
+Var lvl As Int
+
+// 1=Alien  2=Eastbound  3=Westbound
+
+	img = Random(1, 3)
+	pos = (Random(0, 1) * 760) - 30
+	If UserLevel > 10 Then 
+		lvl = Random(2, 3) * 60
+	Else
+		lvl = Random(1, 2) * 60
+	End If
+	
+	mov = (UserLevel / 4) + 10
+	If pos > 0 Then
+		mov = mov * -1
+		If img = 2 Then
+			img = 3
+		End If
+	Else
+		If img = 3 Then
+			img = 2
+		End If
+	End If
+	
+	ShipCount = ShipCount + 1
+	ord = Ship[ShipCount]
+	ord.Parent = img
+	ord.OX = pos
+	ord.OY = lvl + 100
+	ord.DX = mov * 0.2
+	ord.DY = 0
+	ord.PX = ord.OX
+	ord.PY = ord.OY
+	ord.StartTick = Time + 1
+
+End Method
+
+Method AddDrone(Time As Int)
+Var ord As Ordinance
+Var limit As Int
+Var trg As Int 
+
+	AddShip(Time)
+	// Pick target
+	trg = random(1, 9)
+	While (LiveTargets[trg] = False) And limit < 15 
+		trg = Random(1, 9)
+		limit = limit + 1
+	End While
+	ord = Ship[ShipCount]
+	ord.Parent = 4
+	ord.Index = trg
+	ord.OX = Random(100, 600)
+	ord.OY = -8
+	ord.PX = ord.OX
+	ord.PY = ord.OY
+	ord.DX = 0
+	ord.DY = Speed * kDroneSpeed
+	ord.TX = kTargetsX[trg]
+	ord.TY = kTargetY
+	
+End Method
+
+Method AddBomb(Count As Int, Time As Int, Parent As Int, Aim As Int)
+Var idx As Int
+Var trg As Int 
+Var ord As Ordinance
+Var smart As Bool
+Var limit As Int 
+
+
+	For idx = 1 To Count
+		// Aim logic
+		If Aim > kAimSmart Then
+			smart = True
+			Aim = Aim - kAimSmart
+		End If
+		
+		limit = 0
+		If Aim = kAimCity Then
+			// Pick any city location
+			trg = Random(1, 3) + (Random(0, 1) * 4) + 1
+			// If smart, pick a live target
+			While smart = True And LiveTargets[trg] = False And limit < 25
+				trg = Random(1, 3) + (Random(0, 1) * 4) + 1
+				limit = limit + 1
+			End While
+		End If
+		If Aim = kAimSilo Then
+			// Pick any silo location ...
+			trg = Random(0, 2) * 4 + 1
+			While smart = True And LiveTargets[trg] = False And limit < 10
+				trg = Random(0, 2) * 4 + 1
+				limit = limit + 1
+			End While
+		End If
+		If Aim = kAimAny Then
+			// Pick any target location ...
+			trg = Random(1, 9)
+			While smart = True And LiveTargets[trg] = False And limit < 10
+				trg = Random(1, 9)
+				limit = limit + 1
+			End While
+		End If
+
+		// Get next bomb and save target info
+		BombCount = BombCount + 1
+		ord = Bomb[BombCount]
+		
+		If Parent < 0 Then
+			// Bomb dropped from plane
+			ord.Parent = 0
+			ord.StartTick = Clock
+			ord.OX = Ship[Abs(Parent)].PX
+			ord.OY = Ship[Abs(Parent)].PY
+		Else
+			// Bomb from sky
+			ord.Parent = Parent
+			ord.StartTick = Time + (Random(0, 3) * 500)
+			ord.OY = kOriginY
+			ord.OX = Random(2, 698)
+		End If
+		
+		ord.Index = trg
+		ord.TX = kTargetsX[trg]
+		ord.TY = kTargetY
+		CalcDelta(ord, Speed)
+	Next
+
+
+End Method
+
+Method ScreenPrint(X As Int, Y As Int, Value As Int)
+	// Print Tally scores
+	SetFont("Arial", 18, True, False, False) 
+	Color(ColorScheme[kSky])
+	MoveTo(X - 50, Y + 5)
+	Rectangle(70, 20, True)
+	MoveTo(X, Y)
+	If Value > 9 Then
+		MoveTo(X - 14, Y)
+		If Value > 99 Then
+			MoveTo(X - 28, Y)
+			If Value > 999 Then
+				MoveTo(X - 42, Y)
+			End If
+		End If
+	End If
+	Color(ColorScheme[kMissile])
+	Print(Value)
+End Method
+
+Method CheckPlayer()
+// Stops wave 2 from happening if player dies in wave 1
+Var idx As Int
+Var chk As Bool
+
+	For idx = 1 To 9
+		chk = chk Or LiveTargets[idx]
+	Next
+	chk = chk Or (City <= Score)
+	If chk = False Then
+		Wave = 100
+	End If
+
+End Method
+
+
+// REPETITIVE TASKS
+
+Method AddSound(Layer As Int, Duration As Int, File As String)
+// Plays sound based on priority, and lets them last for some duration
+	If (Layer >= Priority) Or (Clock > Hold) Then
+		PlaySound(File)
+		Priority = Layer
+		If Duration > 0 Then 
+			Hold = Clock + Duration
+		Else
+			Hold = -1
+		End If
+	End If
+End Method
+
+Method CalcDelta(Ord As Ordinance, Speed As Decimal)
+// Calculates the delta values to aim missile toward its target
+Var dx As Decimal
+Var dy As Decimal
+	dx = ord.TX - ord.OX
+	dy = ord.TY - ord.OY
+	If Abs(dx) > Abs(dy) Then
+		ord.DX = dx / Abs(dx) * Speed
+		ord.DY = dy / Abs(dx) * Speed
+	Else
+		ord.DX = dx / Abs(dy) * Speed
+		ord.DY = dy / Abs(dy) * Speed
+	End If	
+End Method
+
+Method InitializeExplosion(X As Int, Y As Int)
+Var b As Kaboom = Blast[FindFirstBlast()]
+	b.X = X
+	b.Y = Y
+	b.Tick = Clock - 200
+	b.Size = 5
+	b.Busy = True
+	AddSound(2, 200, "Explode.wav")
+End Method
+
+
+// DRAWING ROUTINES
+
+Method ClearScreen()
+	MoveTo(0, kOriginY)
+	Color(ColorScheme[kSky])
+	Rectangle(700, 390, True)
+End Method
+
+Method SetColors()
+// [ Sky, Ground, Missiles, Aliens, Incoming, Outbound ]
+Define Scheme1 As Int[] = {8, 139, 116, 120, 20, 83}
+Define Scheme2 As Int[] = {8, 139, 116, 20, 120, 83}
+Define Scheme3 As Int[] = {8, 116, 140, 119, 20, 86}
+Define Scheme4 As Int[] = {8, 139, 52, 100, 90, 86}
+Define Scheme5 As Int[] = {134, 140, 98, 38, 139, 56}
+Define Scheme6 As Int[] = {30, 29, 47, 109, 84, 6}
+Define Scheme7 As Int[] = {1, 2, 18, 4, 52, 124}
+Define Scheme8 As Int[] = {60, 75, 126, 47, 64, 138}
+Var scheme As Int = (Level / 2) Mod 8
+
+	If scheme = 0 Then
+		ColorScheme = Scheme1
+	End If
+	If scheme = 1 Then
+		ColorScheme = Scheme2
+	End If
+	If scheme = 2 Then
+		ColorScheme = Scheme3
+	End If
+	If scheme = 3 Then
+		ColorScheme = Scheme4
+	End If
+	If scheme = 4 Then
+		ColorScheme = Scheme5
+	End If
+	If scheme = 5 Then
+		ColorScheme = Scheme6
+	End If
+	If scheme = 6 Then
+		ColorScheme = Scheme7
+	End If
+	If scheme = 7 Then
+		ColorScheme = Scheme8
+	End If
+End Method
+
+Method DrawWorld()
+Var X As Int
+//Define XX As Int
+
+	BeginFrame()
+	Clear(ColorScheme[kSky])
+	Pen(False)
+
+	MoveTo(0, 450)
+	Color(ColorScheme[kGnd])
+	Rectangle(700, 50, True)
+
+	Pen(False)
+	PenWidth(2)
+	For X = 25 To 105 Step 2
+		DrawLine(65, 420, X, 460)
+	Next
+	For X = 310 To 390 Step 2
+		DrawLine(350, 420, x, 460)
+	Next
+	For X = 595 To 675 Step 2
+		DrawLine(635, 420, x, 460)
+	Next
+
+	Pen(False)
+	MoveTo(0, 415)
+	Color(ColorScheme[kSky])
+	Rectangle(700, 20, True)
+	
+	DrawSilo(1)
+	DrawSilo(2)
+	DrawSilo(3)
+	
+	For X = 2 To 4
+		If LiveTargets[X] Then
+			DrawCity(kTargetsX[X], 436)
+		End If
+		If LiveTargets[X + 4] Then
+			DrawCity(kTargetsX[X + 4], 436)
+		End If
+	Next
+	
+	Pen(False)
+	MoveTo(158, 185)
+	If Bonus > 9 Then
+		MoveTo(138, 185)
+	End If
+	Color(ColorScheme[kIn])
+	SetFont("Arial", 48, True, False, False) 
+	Print( Bonus + " X POINTS")
+	SetFont("Arial", 18, True, False, False) 
+	MoveTo(135, 300)
+	Print("(BONUS CITY EVERY " + kCityBonusTrigger + " POINTS)")
+	DrawScore(False)
+	
+End Method
+
+Method DrawScore(Erase As Bool)
+	SetFont("Arial", 24, True, False, False) 
+	If Erase Then
+		Pen(False)
+		MoveTo(10, 4)
+		Color(ColorScheme[kSky])
+		Rectangle(140, 30, True)
+	End If
+	Pen(False)
+	MoveTo(10, 2)
+	Color(ColorScheme[kMissile])
+	Print(Score)
+	MoveTo(540, 2)
+	Print("LEVEL " + UserLevel)
+End Method
+
+Method DrawCity(X As Int, Y As Int)
+Var YY As Int = Y + 9
+	Pen(False)
+	Color(ColorScheme[kMissile])
+	PenWidth(4)
+	MoveTo(X - 24, YY)
+	Rectangle(44, 8, True)
+	MoveTo(X + 20, Y + 13)
+	Rectangle(4, 4, True)
+	DrawLine(X - 18, Y + 5, X - 18, YY)
+	DrawLine(X + 14, Y + 5, X + 14, YY)
+	DrawLine(X + 6, Y + 5, X + 6, YY)
+    DrawLine(X - 14, Y - 3, X - 14, YY)
+    DrawLine(X - 6, Y + 1 , X - 6, YY)
+    DrawLine(X + 2, Y + 1 , X + 2, YY)
+	Pen(False)
+End Method
+
+Method EraseCity(Index As Int)
+	MoveTo(kTargetsX[Index]- 24, 430)
+	Color(ColorScheme[kSky])
+	Rectangle(50, 20, True)
+	MoveTo(kTargetsX[Index]- 24, 450)
+	Color(ColorScheme[kGnd])
+	Rectangle(50, 15, True)
+End Method
+
+Method DrawShip(Index As Int, Erase As Bool)
+Var X As Int
+Var Y As Int
+Var I As Int
+Var img As Int 
+	If Erase Then
+	    Color(ColorScheme[kSky])	
+	Else
+	    Color(ColorScheme[kAlien])	
+	End If
+	X = Ship[Index].PX 
+	Y = Ship[Index].PY - 8
+	img = Ship[Index].Parent
+	If img = 1 Then
+		// Alien (1)
+		Pen(False)
+		PenWidth(8)
+		DrawLine(X - 12, Y  , X + 12, Y)
+		DrawLine(X , Y - 12 , X, Y + 12)
+		PenWidth(1)
+		Pen(False)
+		For I = -14 To 15 Step 4
+			MoveTo(X - I , Y + I)
+			Circle(4, True)
+			MoveTo(X + I , Y + I)
+			Circle(4, True)
+		Next		
+
+	End If
+	If img = 2 Then
+		// Eastbound (2)
+		Pen(False)
+		PenWidth(1)
+		For I = 0 To 12 Step 4
+			MoveTo(X - I, Y + I + 4)
+			Circle(4, True)
+			MoveTo(X - I + 4, Y  - I )
+			Circle(4, True)
+		Next
+		For I = 0 To 8 Step 4
+			MoveTo(X - I + 4, Y + I + 4 )
+			Circle(4, True)
+			MoveTo(X - I + 8, Y  - I)
+			Circle(4, True)
+		Next
+		
+		MoveTo(X - 16, Y - 4)
+		Circle(4, True)
+		PenWidth(4)
+		DrawLine(X - 18, Y, X + 14, Y)
+	End If
+	
+	If img = 3 Then
+		// Westbound (3)
+		Pen(False)
+		PenWidth(1)
+		For I = 0 To 12 Step 4
+			MoveTo(X + I, Y + I + 4)
+			Circle(4, True)
+			MoveTo(X + I - 4 , Y  - I )
+			Circle(4, True)
+		Next
+		For I = 0 To 8 Step 4
+			MoveTo(X + I - 4, Y + I + 4 )
+			Circle(4, True)
+			MoveTo(X + I - 8, Y  - I )
+			Circle(4, True)
+		Next
+		
+		MoveTo(X + 16, Y - 4)
+		Circle(4, True)
+		PenWidth(4)
+		DrawLine(X + 18, Y, X - 12, Y)
+	End If
+			
+	If img = 4 Then
+		// Drone   (4)
+		PenWidth(4)
+		DrawLine(X - 8, Y  , X + 8, Y)
+		DrawLine(X - 5, Y + 4 , X + 5, Y + 4)
+		DrawLine(X - 2, Y + 8, X + 2, Y + 8)
+	End If
+	
+	If Not Erase Then
+		Pen(False)
+		Color(8)
+		MoveTo(Ship[Index].PX, Ship[Index].Py)
+		Circle(2, True)
+	End If
+End Method
+
+Method EraseShips()
+Var idx As Int
+Var ord As Ordinance
+
+	If DroneAttack Then
+		If (Clock Mod 800) < 30 Then
+			AddSound(1, 1, "Break.wav")
+		End If
+	End If
+	For idx = 1 To ShipCount
+		ord = Ship[idx]
+		If ord.StartTick > 0 Then
+			DrawShip(idx, True)
+			If NearExplosion(ord.PX, ord.PY) Then
+				InitializeExplosion(ord.PX, ord.PY)
+				Score = Score + (100 * Bonus)
+				DrawScore(True)
+				ord.StartTick = 0
+			Else
+				If ord.Parent = 1 Then
+					// Alien
+					If abs(ord.OX - ord.PX) > 760 Then
+						ord.StartTick = 0
+					End If
+				End If
+				If ord.Parent = 2 Then
+					// Eastbound
+					If ord.PX > 730 Then
+						ord.StartTick = 0
+					End If
+				End If
+				If ord.Parent = 3 Then
+					// Westbound
+					If ord.PX < -30 Then
+						ord.StartTick = 0
+					End If
+				End If
+				If ord.Parent = 4 Then
+					// Drone
+					If ord.PY >= kTargetY Then
+						InitializeExplosion(ord.PX, ord.PY)
+						ord.StartTick = 0
+						If (Abs(ord.TX - ord.PX) < 12 And Abs(ord.TY - ord.PY) < 12) Then
+							BlowUpTarget(ord.Index)
+						End If
+					End If
+				End If
+			End If
+		End If
+	Next
+
+End Method
+
+Method DrawSilo(Index As Int)
+Define S As Int[] = {65, 350, 635}
+Define X As Int[] = {0, -8, 8, -16, 0, 16, -24, -8, 8, 24}
+Define Y As Int[] = {438, 452, 452, 466, 466, 466, 480, 480, 480, 480}
+Var idx As Int
+	For idx = 1 To 10
+		DrawMissile(S[Index] + X[idx], Y[idx], (Silo[Index] >= idx))
+	Next
+End Method
+
+Method DrawMissile(X As Int, Y As Int, Visible As Bool)
+	Pen(False)
+	PenWidth(2)
+	If Visible Then
+		MoveTo(X - 1, Y)
+		Color(ColorScheme[kMissile])
+		Rectangle(3, 10, True)
+		DrawLine(X - 2, Y + 6, X - 2, Y + 12)
+		DrawLine(X + 3, Y + 6, X + 3, Y + 12)
+	Else
+		MoveTo(X - 3, Y)
+		Color(ColorScheme[kGnd])
+		Rectangle(7, 12, True)
+	End If
+End Method
+
+Method TheEnd()
+Define bkg As Int[] = {55, 94, 70, 101, 137, 110, 93, 20}
+Var siz As Int
+	Clear(8)
+	Pen(False)
+	PenWidth(350)
+	AddSound(10, 0, "CityBomb.wav")
+	ColorScheme[kMissile] = 137
+	ColorScheme[kSky] = 8
+	For siz = 0 To 151 Step 1
+		BeginFrame()
+		Color(bkg[(siz Mod 8) + 1])
+		DrawLine(350, 50, 350, 450)
+		DrawLine(100, 250, 600, 250)
+		Color(bkg[ ((siz + 5) Mod 8) + 1 ])
+		Pen(False)
+		SetFont("Arial", 72, True, False, False)
+		MoveTo(130, 195)
+		Print("THE END")
+		Color(8)
+		DrawLine(100, 420 + Siz, 600, 420 + siz)
+		DrawLine(100, 80 - Siz, 600, 80 - siz)
+		DrawLine(300 + Siz , -50 - Siz, 800 + siz, 450 - Siz)
+		DrawLine(-100 - Siz , 50 + Siz, 400 - siz, 550 + Siz)
+		DrawLine(400 - Siz , -50 - Siz, 00 - siz, 350 - Siz)
+		DrawLine(900 + Siz , -50 + Siz, 300 + siz, 550 + Siz)
+		DrawScore(False)
+		RefreshScreen()
+	Next
+End Method
+
+End Program

@@ -1,0 +1,114 @@
+Program SlowLines
+	
+	// Difficulty: Intermediate
+	// Concepts: Pen drawing, (X,Y) coordinates, functions and methods
+	// Lines of KPL: Around 73
+	// Author: Jamey Friend
+	
+	// A teacher asked us about a way to delay drawing with the 
+	// pen, so his students could see it happen in animated fashion.
+	// We'll add that as a optional feature with the pen in KPL v 2
+	// I think, because animated drawing is just fundamentally cool
+	// to watch.  This is the second and more advanced example, 
+	// using a star instead of a square, and thus having more 
+	// interesting line slopes which must be drawn.  Basically, you 
+	// can draw in small steps, and delay between each step.  This 
+	// is more work than simply picking end points, but it does work.  
+	// And an advantage of working with an example like this is that
+	
+	// This particular example, by Jamey Friend, pushes the animated
+	// drawing drawing into a function, demonstrating the principle 
+	// of modular programming.
+
+	// Change the value of LineWidth to make the lines wider or narrower.
+	Define LineWidth As Int = 2
+	
+	// Change the the value of Pause to draw the lines faster or slower.
+	Define Pause As Int = 10 
+		
+	Method Main()
+	
+		// Replace the following to draw different lines.
+	
+		DrawSlowLine ( 100, 100, 400, 100 )
+		DrawSlowLine ( 400, 100, 400, 400 )
+		DrawSlowLine ( 400, 400, 100, 400 )
+		DrawSlowLine ( 100, 400, 100, 100 )
+		
+		DrawSlowLine ( 100, 250, 150, 400 )
+		DrawSlowLine ( 150, 400, 250, 100 )
+		DrawSlowLine ( 250, 100, 350, 400 )
+		DrawSlowLine ( 350, 400, 400, 250 )
+		
+		DrawSlowLine ( 400, 250, 350, 100 )
+		DrawSlowLine ( 350, 100, 250, 400 )
+		DrawSlowLine ( 250, 400, 150, 100 )
+		DrawSlowLine ( 150, 100, 100, 250 )
+
+	End Method
+
+	Function DrawSlowLine ( x1 As Decimal, y1 As Decimal, x2 As Decimal, y2 As Decimal ) As Bool
+		Define Slope As Decimal
+		Define x As Decimal
+		Define y As Decimal
+		
+		// Special case: Vertical line
+		If y1 = y2 Then
+			If x1 < x2 Then
+				For x = x1 To  x2 
+					DrawLine ( x, y1, x, y1 )
+					Rectangle ( LineWidth, LineWidth, True )
+					Delay ( Pause )
+				Next
+			Else
+				For x = x2 To x1
+					DrawLine ( x2 + x1 - x, y1, x2 + x1 - x, y1 )
+					Rectangle ( LineWidth, LineWidth, True )
+					Delay ( Pause )
+				Next
+			End If
+		Return True
+		End If
+			
+		Slope  = ( y2 - y1 )/( x2 - x1 )
+
+		// Special case: Slope is small	
+		If Abs ( Slope ) < 1 Then
+			If x1 < x2 Then
+				For x = x1 To x2 
+					y = Slope*( x - x1 ) + y1
+					DrawLine ( x, y, x, y )
+					Rectangle ( LineWidth, LineWidth, True )
+					Delay ( Pause )
+				Next
+			Else
+				For x = x2 To x1
+					y =  y2 + Slope*( x1 - x )
+					DrawLine ( x1 + x2 - x, y,  x1 + x2 - x, y )
+					Rectangle ( LineWidth, LineWidth, True )
+					Delay ( Pause )
+				Next
+			End If
+		Return True
+		End If
+		
+		// Special case: Slope is steep
+		If y1 < y2 Then
+			For y = y1 To y2
+				x = x1 + ( y - y1 )/Slope
+				DrawLine ( x, y, x, y )
+				Rectangle ( LineWidth, LineWidth, True )
+				Delay ( Pause )
+			Next
+		Else
+			For y = y2 To y1
+				x = x2 + ( y1 - y )/Slope
+				DrawLine ( x, y1 + y2 - y, x, y1 + y2 - y )
+				Rectangle ( LineWidth, LineWidth, True )
+				Delay ( Pause )
+			Next
+		End If
+
+	End Function
+	
+End Program

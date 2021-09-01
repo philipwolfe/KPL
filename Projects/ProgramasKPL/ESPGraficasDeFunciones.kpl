@@ -1,0 +1,149 @@
+Program GraficasDeFunciones
+
+	Method DibujaLineasDelEjeHorizontal()
+
+		Define Y As Int
+		For Y = -200 To 200 Step 20
+			DrawLine( -200, Y, 200, Y )
+		Next
+	
+	End Method
+	
+	Method DibujaLineasDelEjeVertical()
+	
+		Define X As Int
+		For X = -200 To 200 Step 20
+			DrawLine( X, -200, X, 200 )   
+		Next
+		
+	End Method
+	
+	Method PosicionaPen( X As Decimal, Y As Decimal )
+		Pen( Off )
+		MoveTo( X, Y )
+		Pen( On )
+	End Method
+	
+	Method DibujaLineasDeOrigen()
+	
+		PenWidth( 3 )
+		DrawLine( 200, 0, -200, 0 )
+		DrawLine( 0, 200, 0, -200 )
+		
+		PosicionaPen( -20, 215 )
+		Print( "0, 200" )
+		
+		PosicionaPen( -20, -200 )
+		Print( "0, -200" )
+		
+		PosicionaPen( 200, 7 )
+		Print( "200, 0" )
+		
+		PosicionaPen( -245, 7 )
+		Print( "-200, 0" )
+	
+	End Method
+	
+	Method DibujaCOS()
+	
+		Define X As Decimal = -199.0
+		Define Y As Decimal = 1.0
+		
+		Color( Red )
+		
+		Define UltimaX As Decimal 
+		Define UltimaY As Decimal
+
+		While X < 200 
+		
+			UltimaX = X
+			UltimaY = Y
+
+			Y = Abs( Cos( X ) * X / 1 ) - 50
+			X = X + 3
+
+			DrawLine( UltimaX, UltimaY, X, Y )
+			Trace( "X = " + X + ", Y = " + Y )
+			
+			// ¡Queremos verla dibujar!
+			//Delay( 1 )
+
+		End While
+	
+	End Method
+
+	Method DibujaParabola()
+	
+		Define X As Decimal = -199.0
+		Define Y As Decimal = -200
+		
+		Color( Blue )
+		
+		Define UltimaX As Decimal 
+		Define UltimaY As Decimal
+
+		While X < 200 
+		
+			UltimaX = X
+			UltimaY = Y
+
+			Y = (X * X / 200) * -1
+			X = X + 3
+
+			DrawLine( UltimaX, UltimaY, X, Y )
+			Trace( "X = " + X + ", Y = " + Y )
+
+			// ¡Queremos verla dibujar!
+			//Delay( 1 )
+
+		End While
+	
+	End Method
+
+	Method DibujaLineaInclinada()
+	
+		Define X As Decimal = -199.0
+		Define Y As Decimal = -200
+		
+		Color( Magenta )
+		
+		Define UltimaX As Decimal 
+		Define UltimaY As Decimal
+
+		While X < 200 
+		
+			UltimaX = X
+			UltimaY = Y
+
+			Y = X + UltimaX Mod 20
+			X = X + 10
+
+			DrawLine( UltimaX, UltimaY, X, Y )
+			Trace( "X = " + X + ", Y = " + Y )
+
+			// ¡Queremos verla dibujar!
+			//Delay( 1 )
+
+		End While
+	
+	End Method
+
+	Method Main()
+	
+		SetAlgebraCoordinates()
+	
+		ColorRGB( 200, 200, 200 )
+		
+		DibujaLineasDelEjeHorizontal()
+		DibujaLineasDelEjeVertical()
+		DibujaLineasDeOrigen()
+		
+		PenWidth( 3 )
+		
+		DibujaLineaInclinada()
+		DibujaParabola()
+		DibujaCOS()
+		
+	End Method
+
+End Program

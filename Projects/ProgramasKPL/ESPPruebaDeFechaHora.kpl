@@ -1,0 +1,95 @@
+
+// Todos los programas KPL empiezan con la palabra "Program" seguida por el
+// nombre de tu programa, y termina con las palabras "End Program".
+Program PruebaDeFechaHora
+
+	// Este es el punto de inicio del programa, y es 'llamado'
+	// automáticamente por KPL cuando se ejecuta el programa.
+	//
+	// Para expandir este método, da doble-clic en la caja de abajo ó
+	// da clic en el símbolo MAS a la izquierda de las palabras "Method Main()"
+	Method Main()
+
+		ShowConsole()
+		
+		Define Fecha As String = Today()
+		Define Hora As String = TimeNow()
+		Define nombreDia As String = DayName( DayOfWeek( Fecha ), False )
+		Define nombreMes As String = MonthName( Month( Fecha ), False )
+		
+		ConsoleWriteLine( "La Fecha de hoy es : " + Fecha + ", es un día " + nombreDia + " de " + nombreMes )
+		ConsoleWriteLine( "Fecha en Formato Largo : " + FormatDate( Year( Fecha ), Month( Fecha ), Day( Fecha ), True ) )
+		ConsoleWriteLine( "La Hora actual es : " + Hora )
+		ConsoleWriteLine( "Hora en Formato Corto : " + FormatTime( Hour( Hora ), Minute( Hora ), Second( Hora ), False ) )
+		ConsoleWriteLine( "" )
+		
+		ConsoleWriteLine( "Presiona cualquier tecla para continuar" )
+		ConsoleReadKey( False )
+		ConsoleWriteLine( "" )
+		
+		Define elAnio As Int = Year( Fecha )
+		Define elMes As Int = 1
+		
+		While elMes <= 12
+			DibujaCalendario( elAnio, elMes )
+			elMes = elMes + 1
+			ConsoleWriteLine( "" )
+		End While
+
+	End Method
+	
+	Method DibujaCalendario( elAnio As Int, elMes As Int )
+	
+		Define numeroDeDias As Int = DaysInMonth( elAnio, elMes )
+		
+		SetConsoleFontStyle( True, False, False )
+		ConsoleWriteLine( MonthName( elMes, False ) )
+		
+		Define Columna As Int = 1
+		
+		While Columna <= 7
+			ConsoleWrite( "\t" + DayName( Columna, True ) )
+			Columna = Columna + 1
+		End While
+		
+		ConsoleWriteLine( "" )
+
+		SetConsoleFontStyle( False, False, False )
+
+		Define tempFecha As String = FormatDate( elAnio, elMes, 1, False )
+		Define tempDia As Int = DayOfWeek( tempFecha )
+		
+		Columna = 1
+		While Columna < tempDia
+			ConsoleWrite( "\t" )
+			Columna = Columna + 1
+		End While
+		
+		tempDia = 1
+		Loop DaysInMonth( elAnio, elMes )
+		
+			If tempDia = Day( Today() ) And elMes = Month( Today() ) Then
+				SetConsoleFontStyle( True, False, False )
+				SetConsoleFontColor( Blue )
+			Else
+				SetConsoleFontStyle( False, False, False )
+				SetConsoleFontColor( Black )
+			End If
+		
+			ConsoleWrite( "\t" + tempDia )
+			tempDia = tempDia + 1 
+			
+			If Columna = 7 Then
+				ConsoleWriteLine( "" )
+				Columna = 1
+			Else
+				Columna = Columna + 1
+			End If
+			
+		End Loop
+		
+		ConsoleWriteLine( "" )
+		
+	End Method 
+
+End Program

@@ -1,0 +1,528 @@
+// KPL Implementation of Minesweeper
+// Created by Brad Corbin, 2006
+// Difficulty level: Intermediate to Advanced
+// Concepts:
+// 	Sprites and stamping. Lots of stamping
+//  Recursive algorithms
+//  Left and right-Mouse buttons
+//  Timers
+//
+// Lines of KPL code: 530
+//
+// Improvements to come with KPL 2.0:
+//  2-dimentional arrays!!
+//  Middle-mouse button functionality?
+//  High scores saved to a text file??
+
+Program MineSweeper
+
+	/**************************
+			Global Stuff
+	**************************/
+	Structure cell
+		mine As Bool
+		clear As Bool
+		flag As Bool
+	End Structure
+
+	//Configuration Variables
+	Define rows As Int = 16				//Must be 9 or above
+	Define cols As Int = 16				//Must be 9 or above
+	Define mines As Int = 40			//Can't exceed # of cells or 1000
+	
+	//Internal Variables
+	Define Board As cell[cols * rows]	//Major variable holding the board state
+	Define MinesLeft As Int = mines		//Remaining mines to be found/marked
+	Define GameStartTime As Decimal		//For Timer functionality
+
+	Define FirstClear As Bool = True	//Used for variations in logic, and to exclude unnecessary calls
+	Define InProgress As Bool = False
+	Define StillWorking As Int = 0
+	
+	//Constants used for sprite spacing
+	Define TopSpace As Int = 53			
+	Define LeftSpace As Int = 10
+	Define CellSize As Int = 16
+	Define HorizAdjust As Int = CellSize * (cols - 9)
+	Define VertAdjust As Int = CellSize * (rows - 9)
+	//Used to look "around" the cell
+	Define Offset As Int[9] = { (0 - rows - 1), (0 - rows), (0 - rows + 1), -1, 0, 1, (rows - 1), rows, (rows + 1) }
+
+	/**************************
+			Main Stuff
+	**************************/
+	Method Main()
+		//one-time events
+		PreloadSprites()
+		InitializeScreen()
+		StartGame()
+		
+		SetMouseEvent("MouseClick")
+		GameLoop()
+	End Method
+
+	Method GameLoop()
+		Define CurrentTime As Decimal 
+		Define TimeLastChecked As Decimal
+		While True
+			CurrentTime = TickCount()	
+			// If 100 milliseconds have not passed, don't do anything yet.
+			If (InProgress And CurrentTime - TimeLastChecked > 100) Then			
+				//Update the timer
+				If Not FirstClear Then
+					SetTimer((CurrentTime - GameStartTime) / 1000)
+				End If
+				// Reset the timer each time, so that we wait before updating again.
+				TimeLastChecked = CurrentTime
+			End If
+			RefreshScreen()
+		End While
+	End Method	
+	
+	/**************************
+		Initial Setup Stuff
+	**************************/
+	Method PreloadSprites()
+		//We will preload 3 separate sprites, for the different types of images.
+		//When we need them, we will just move the sprite in position, 
+		//adjust the frame using SetSpriteActiveFrame, Then STAMP it
+		LoadSprite("flag", "MineButton.gif")
+		LoadSprite("number", "MineNums.gif")
+		LoadSprite("mine", "Mines.gif")
+	End Method
+
+	Method InitializeScreen()
+		//Stamp Up Left
+		LoadSprite("Background", "MineBoardUL.gif")
+		StampByXY("Background", 1, 1)
+		UnloadSprite("BackGround")
+
+		//Stamp Up Right
+		LoadSprite("Background", "MineBoardUR.gif")
+		Define TempAdjust As Int = (9 * CellSize)
+		While TempAdjust <= (HorizAdjust + 9 * CellSize)
+			StampByXY("Background", LeftSpace + min(TempAdjust, HorizAdjust), 1)
+			TempAdjust = TempAdjust + 9 * CellSize
+		End While
+		UnloadSprite("BackGround")
+
+		//Stamp Down Left
+		LoadSprite("Background", "MineBoardDL.gif")
+		TempAdjust = (9 * CellSize)
+		While tempadjust <= (VertAdjust + 9 * CellSize)
+			StampByXY("Background", 1, TopSpace + min(tempAdjust, VertAdjust))
+			TempAdjust = TempAdjust + 9 * CellSize
+		End While
+		UnloadSprite("BackGround")
+		
+		//Stamp Down Right
+		LoadSprite("Background", "MineBoardDR.gif")
+		StampByXY("Background", LeftSpace + HorizAdjust, TopSpace + VertAdjust)
+		TempAdjust = (9 * CellSize)
+		While TempAdjust <= (HorizAdjust + 9 * CellSize)
+			StampByXY("Background", LeftSpace + min(TempAdjust, HorizAdjust), TopSpace + VertAdjust)
+			TempAdjust = TempAdjust + 9 * CellSize
+		End While
+		TempAdjust = (9 * CellSize)
+		While tempadjust <= (VertAdjust + 9 * CellSize)
+			StampByXY("Background", LeftSpace + HorizAdjust, TopSpace + min(tempAdjust, VertAdjust))
+			TempAdjust = TempAdjust + 9 * CellSize
+		End While
+		UnloadSprite("BackGround")
+		
+		//Re-stamp boxes for Timer/Counter
+		LoadSprite("Background", "MineLEDBack.gif")
+		StampByXY("Background", 14, 13)
+		StampByXY("Background", 107 + HorizAdjust, 13)
+		UnloadSprite("BackGround")
+		
+		SetScreenSize(164 + horizadjust, 190 + vertadjust)	//True height is 207. This function seems bugged
+
+		//Setup smilie face
+		LoadSprite("smile", "MineSmile.gif")
+		MoveSpriteToPoint("smile", 69 + (HorizAdjust / 2), 13)
+		ShowSprite("smile")
+		
+		SetupTimer()
+		SetupCounter()
+	End Method
+		
+	Method SetupTimer()
+		//Setup Timer
+		LoadSprite("timer100", "MineLED.gif")
+		MoveSpriteToPoint("timer100", 108 + HorizAdjust, 14)
+		ShowSprite("timer100")
+		
+		LoadSprite("timer010", "MineLED.gif")
+		MoveSpriteToPoint("timer010", 121 + HorizAdjust, 14)
+		ShowSprite("timer010")
+		
+		LoadSprite("timer001", "MineLED.gif")
+		MoveSpriteToPoint("timer001", 134 + HorizAdjust, 14)
+		ShowSprite("timer001")
+		
+		SetTimer(0)
+	End Method
+	
+	Method SetupCounter()
+		//Setup mine counter
+		LoadSprite("count100", "MineLED.gif")
+		MoveSpriteToPoint("count100", 15, 14)
+		ShowSprite("count100")
+		
+		LoadSprite("count010", "MineLED.gif")
+		MoveSpriteToPoint("count010", 28, 14)
+		ShowSprite("count010")
+		
+		LoadSprite("count001", "MineLED.gif")
+		MoveSpriteToPoint("count001", 41, 14)
+		ShowSprite("count001")
+		
+		SetCounter(mines)
+	End Method
+		
+	/**************************
+		Game Start Stuff
+	**************************/
+	Method StartGame()
+		ClearBoard()
+		PlantMines()
+		SetSpriteActiveFrame("smile", 1)
+		SetTimer(0)
+		MinesLeft = Mines
+		SetCounter(MinesLeft)
+		InProgress = True
+		FirstClear = True
+	End Method
+
+	Method ClearBoard()
+		Define i As Int
+		
+		SetSpriteActiveFrame("flag", 1)
+		For i = 1 To (rows * cols)
+			Board[i].mine = False
+			Board[i].flag = False
+			Board[i].clear = False
+			StampByIndex("flag", i)
+		Next
+	
+		//Do we just want to drop the background back on ?
+		
+	End Method
+
+	Method PlantMines()
+		//Make sure we don't have to many mines
+		If mines > (rows * cols * .75 )Then
+			mines = (rows * cols) * .75
+		End If
+		Loop mines
+			PlantAMine()
+		End Loop
+	End Method
+
+	Method PlantAMine()
+		Define num As Int = Random(1, (cols * rows))
+		//Don't plant a mine on another mine
+		While Board[num].mine
+			num = Random(1, (cols * rows))
+		End While
+		Board[num].mine = True
+	End Method
+	
+	/**************************
+		  The Mousy Stuff
+	  (The click starts here!)
+	**************************/
+	Method MouseClick( EventName As String, X As Int, Y As Int, Button As Int )
+		Define index As Int = 0
+		If EventName = "ButtonUp" Then
+			//If the game is running, and we're not deep in recursion, make sure they clicked on the board
+			If (InProgress And StillWorking = 0 ) Then
+				index = GetCell(x,y)
+			End If
+			If index <> 0 Then
+				If Button = 1 Then
+					ClearCell(index)
+				End If
+				If Button = 2 Then
+					FlagCell(index)
+				End If
+			Else
+				If SpriteContainsPoint("smile", x, y) Then
+					StartGame()
+				End If
+			End If
+		End If
+	End Method
+	
+	Method ClearCell(index As Int)
+		Define MineCount As Int
+		//Ignore if already cleared or flagged
+		If ((Not Board[index].Clear) And (Not Board[index].flag)) Then
+			//If necessary, move a bomb so the first click doesn't explode
+			While (FirstClear And Board[index].mine) 
+				Board[index].mine = False
+				PlantAMine()
+			End While
+			//Clear the cell
+			Board[index].Clear = True
+			If Board[index].mine Then
+				SetSpriteActiveFrame("mine", 2)
+				StampByIndex("mine", index)
+				GameLost()
+			Else
+				MineCount = GetMineCount(index)
+				SetSpriteActiveFrame("number", MineCount)
+				StampByIndex("number", index)
+				If MineCount = 9 Then
+					ClearSurrounding(index)
+				End If
+			End If
+			If FirstClear Then
+				FirstClear = False
+				GameStartTime = TickCount()
+			End If
+		End If
+
+		//don't do this check if we're deep in recursion
+		If StillWorking = 0 Then
+			If DidweWin() Then
+				GameWon()
+			End If
+		End If
+	End Method
+	
+	Method FlagCell(index As Int)
+		//Flag or unflag, depending on current state
+		If Not Board[index].Clear Then
+			//toggle the flag
+			Board[index].flag = Not(Board[index].flag)
+			//select the right icon
+			If Board[index].flag Then
+				SetSpriteActiveFrame("flag", 2)
+				MinesLeft = MinesLeft - 1
+			Else
+				SetSpriteActiveFrame("flag", 1)
+				MinesLeft = MinesLeft + 1
+			End If
+			SetCounter(MinesLeft)
+			//stamp it
+			StampByIndex("flag", index)
+		End If
+	End Method
+	
+	Method ClearSurrounding(index As Int)
+		Define goodneighbors As Bool[9] = ValidNeighborArray(index)
+
+		StillWorking = StillWorking + 1
+		Define i As Int
+		For i = 1 To 9
+			If goodneighbors[i] Then
+				ClearCell(index + Offset[i])
+			End If
+		Next
+		StillWorking = StillWorking - 1
+	End Method
+	
+	/**************************
+	 Main Supporting Functions 
+	**************************/
+		
+	Function GetMineCount(index As Int) As Int
+		Define goodneighbors As Bool[9] = ValidNeighborArray(index)
+	
+		//blank cell has an index of 9, so return that instead of 0
+		Define count As Int = 0
+		Define i As Int
+		For i = 1 To 9
+			If goodneighbors[i] Then
+				If Board[index + Offset[i]].mine Then
+					count = count + 1
+				End If
+			End If
+		Next
+		If Count = 0 Then
+			Return 9
+		Else
+			Return Count
+		End If
+	End Function
+		
+	Function ValidNeighborArray(index As Int) As Bool[]
+		//These are the numeric directions:
+		// 1 4 7
+		// 2 5 8
+		// 3 6 9
+
+		Define col As Int = GetCol(index)
+		Define row As Int = GetRow(index)
+		
+		Define Neighbors As Bool[ 9 ] = { True, True, True, True, False, True, True, True, True }
+		//Define Neighbors As Bool[ 9 ] = { 1, 1, 1, 1, 0, 1, 1, 1, 1 }
+	
+		If row = 1 Then
+			Neighbors[1] = 0
+			Neighbors[4] = 0
+			Neighbors[7] = 0
+		End If
+		If row = rows Then
+			Neighbors[3] = 0
+			Neighbors[6] = 0
+			Neighbors[9] = 0
+		End If
+		If col = 1 Then
+			Neighbors[1] = 0
+			Neighbors[2] = 0
+			Neighbors[3] = 0
+		End If
+		If col = cols Then
+			Neighbors[7] = 0
+			Neighbors[8] = 0
+			Neighbors[9] = 0
+		End If
+	
+		Return Neighbors
+	End Function
+		
+	/**************************
+  	   	Winning and Losing
+	**************************/
+
+	Function DidweWin() As Bool
+		//If all non-mines have been cleared, its a win
+		//We don't care if mines are marked or not
+		Define i As Int
+		
+		For i = 1 To (cols * rows)
+			If ((Not Board[i].mine) And (Not Board[i].clear)) Then
+				//bail when we find the first one
+				Return False
+			End If
+		Next
+		Return True
+		
+	End Function
+
+	Method GameLost()
+		//Show Frownie Face
+		SetSpriteActiveFrame("smile", 2)
+		
+		Define i As Int
+		For i = 1 To (rows * cols)
+			//Show remaining mines
+			If Board[i].mine And Not Board[i].clear Then
+				SetSpriteActiveFrame("mine", 1)
+				StampByIndex("mine", i)
+			End If
+			//Show incorrectly flagged mines
+			If Board[i].flag And Not Board[i].mine Then
+				SetSpriteActiveFrame("mine", 3)
+				StampByIndex("mine", i)
+			End If
+		Next
+		InProgress = False
+	End Method
+	
+	Method GameWon()
+		//Show Cool Face
+		SetSpriteActiveFrame("smile", 3)
+		SetCounter(0)
+	
+		Define i As Int
+		For i = 1 To (rows * cols)
+			//Flag remaining mines
+			If Board[i].mine And Not Board[i].flag Then
+				SetSpriteActiveFrame("flag", 2)
+				StampByIndex("flag", i)
+			End If
+		Next
+		InProgress = False
+	End Method
+	
+	/**************************
+			Other Stuff
+	**************************/
+	Method StampByIndex(SpriteName As String, index As Int)
+		//convert to row and column number
+		Define col As Int = GetCol(index)
+		Define row As Int = GetRow(index)
+		//convert to (x,y) screen dimentions
+		Define x As Int = LeftSpace + CellSize * (col - 1)
+		Define y As Int = TopSpace + CellSize * (row - 1)
+
+		StampByXY(SpriteName, x, y)
+	End Method
+	
+	Method StampByXY(SpriteName As String, x As Int, y As Int)
+		MoveSpriteToPoint(SpriteName, x, y)
+		ShowSprite(SpriteName)
+		StampSprite(SpriteName)
+		HideSprite(SpriteName)
+	End Method
+	
+	Method SetTimer(seconds As Int)
+		Define text As String = ConvertToString(seconds)
+		While  StringLength(text) < 3 
+			Text = "0" + text
+		End While
+		
+		SetSpriteActiveFrame("Timer100", getDigit(Substring(Text,1,1)))
+		SetSpriteActiveFrame("Timer010", getDigit(Substring(Text,2,1)))
+		SetSpriteActiveFrame("Timer001", getDigit(Substring(Text,3,1)))
+	End Method
+	
+	Method SetCounter(count As Int)
+		Define text As String
+		If count < 0 Then
+			//show a negative sign
+			SetSpriteActiveFrame("Count100", 11)
+			text = ConvertToString(0 - count)
+			While  StringLength(text) < 3 
+				Text = "0" + text
+			End While
+			
+			SetSpriteActiveFrame("Count010", getDigit(Substring(Text,2,1)))
+			SetSpriteActiveFrame("Count001", getDigit(Substring(Text,3,1)))
+		Else
+			text  = ConvertToString(count)
+			While  StringLength(text) < 3 
+				Text = "0" + text
+			End While
+			
+			SetSpriteActiveFrame("Count100", getDigit(Substring(Text,1,1)))
+			SetSpriteActiveFrame("Count010", getDigit(Substring(Text,2,1)))
+			SetSpriteActiveFrame("Count001", getDigit(Substring(Text,3,1)))
+		End If
+	End Method
+
+	Function getDigit(strDigit As String) As Int
+		If strDigit = "0" Then
+			Return 10
+		Else
+			Return ConvertToInt(strDigit)
+		End If
+	End Function
+	
+	Function GetCell(x As Int, y As Int) As Int
+		//Find the mine cell from the mouse click coordinates
+		Define col As Int
+		Define row As Int
+		If (x < LeftSpace Or y < TopSpace Or x > (LeftSpace + CellSize * cols) Or y > (TopSpace + CellSize * rows)) Then
+			Return 0 //Out of range
+		Else	//integer division, will ignore remainder
+			col = (x - LeftSpace) / CellSize + 1
+			row = (y - TopSpace) / CellSize + 1
+			Return ((col - 1) * rows + row)
+		End If
+	End Function
+	
+	Function GetCol(index As Int) As Int
+		Return ((index - 1) / rows) + 1
+	End Function
+
+	Function GetRow(index As Int) As Int
+		//integer division, so (a/b)*b <> a
+		Return index - (((index - 1) / rows) * rows)
+	End Function
+
+End Program

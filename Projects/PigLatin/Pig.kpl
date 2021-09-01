@@ -1,0 +1,166 @@
+// Program Pig is an igpay atinlay anslatortray.  Pardon me, a pig 
+// latin translator!  It's our best example yet of string processing 
+// and string manipulation in KPL!  Thanks again, Jamey!
+
+// Difficulty level: Intermediate to advanced
+// Concepts: Lots! But the main one is string processing.
+// KPL Lines: 165, with comments and white space
+// Author: Jamey Friend
+
+Program Pig
+
+	Define English As String
+	Define Word As String []
+	Define ThisWord As String 
+	
+	Method Main()
+		Define i As Int
+		Define InitialConsonents As String 
+		Define Tail As String
+		Define NumFrames As Int
+		
+		Maximize ()
+		
+		ColorRGB (198, 247, 255)                          // Color the screen
+		For i = 0 To ScreenWidth ()
+			DrawLine (i, 0, i, ScreenHeight ())
+		Next
+		
+		LoadSprite ("Styron", "Styron.gif")     // Show Styron
+		MoveSpriteToPoint ("Styron", 350, 30)
+		ShowSprite ("Styron")
+		NumFrames = GetSpriteFrameCount ("Styron")
+		
+		LoadSprite ("Ad", "Ad.gif")             // Show the ad
+		MoveSpriteToPoint ("Ad", 200, 170)
+		ShowSprite ("Ad")
+		
+		For i = 1 To NumFrames + 4                        // Activate Styron
+			Delay (350)
+			SetSpriteActiveFrame ("Styron", i Mod NumFrames)
+		Next
+		
+		SetConsoleHeight (25)                             // Wait for input
+		ShowConsole ()
+		English = ConsoleReadLine ("English to be translated: ", True)
+
+		Word = Split (English, " ")                       // Split into words
+		
+		ConsoleWrite ("Translation: ")
+		
+		For i = 1 To ArrayLength (Word)					  // Write translation
+			ThisWord = Word[i]                            // one word at a time
+			
+			If Not isEmpty (ThisWord) Then
+			
+				InitialConsonents = GetInitialConsonents ()  // Take out 1st part
+				If Not isEmpty (InitialConsonents) Then
+					thisword  = StringReplace (ThisWord, InitialConsonents, "")
+				End If
+				
+				Tail = getTail ()                          // Save tail end
+				Tail = Tail + " "				           // (A kluge)
+				If Not isEmpty (Tail) Then
+					ThisWord  = StringReplace (ThisWord, Tail, "")
+				End If
+														   // Write translation
+				ConsoleWrite (ThisWord + "-" + InitialConsonents + "ay" + Tail + " ")
+			End If 
+				
+		Next
+		
+		MoveSpriteToPoint ("Styron", 40, screenheight () - 180) // Move Styron
+		ShowSprite ("Styron")
+		
+		Loop 2                                               // Activate Styron
+		For i = 1 To NumFrames + 4
+			Delay (350)
+			SetSpriteActiveFrame ("Styron", i Mod NumFrames)
+		Next
+		End Loop
+		
+	End Method
+
+	Function isEmpty (s As String) As Bool
+		Define i As Int
+		For i = 1 To StringLength (s)
+			If Substring (s, i, 1) <> " " Then
+				Return False
+			End If
+		Next
+		Return True
+	End Function
+	
+	Function isLetter (s As String) As Bool
+		Define Letter As String [] = Split ("a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z", ",")
+		Define i As Int
+		
+		For i = 1 To ArrayLength (Letter)
+			If s = letter[i] Then
+				Return True
+			End If
+		Next
+		
+		Return False
+		
+	End Function
+	
+	Function isVowel (s As String) As Bool
+	// This definition of vowel is not, strictly speaking, correct,
+	// but for the purpose of Pig-latin, it will suffice.
+		Define Vowel As String [] = Split ("a,e,i,o,u", ",")
+		Define i As Int
+		
+		For i = 1 To ArrayLength (Vowel)
+			If s = Vowel[i] Then
+				Return True
+			End If
+		Next
+		
+		Return False
+	End Function
+	
+	Function isConsonent (s As String, Position As Int) As Bool
+		If s = "y" And Position > 1 Then          // y is sometimes a consonent
+			Return False
+		End If
+		
+		If isLetter (s) And Not isVowel (s) Then
+			Return True
+		End If
+		
+		Return False
+	End Function
+	
+	Function GetInitialConsonents () As String
+	// Gets the initial consonent string from ThisWord
+		Define Head As String
+		Define i As Int = 1
+		
+		Define NewWord As String
+		
+		While isConsonent (Substring (ThisWord, i, 1), i)
+			Head = Head + substring (ThisWord, i, 1)
+			i = i + 1
+		End While
+
+		Return Head
+	End Function
+	
+	Function GetTail () As String
+	// Gets the final punctuation from ThisWord
+		Define i As Int = StringLength (ThisWord)
+		Define Tail As String
+
+		ThisWord = ThisWord + " "			//  This is a kluge
+
+		While Not isLetter (substring (ThisWord, i, 1))
+			Tail = (substring (ThisWord, i, 1)) + Tail
+			i = i - 1
+		End While
+
+		Return Tail
+	
+	End Function
+	
+End Program

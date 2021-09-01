@@ -1,0 +1,347 @@
+/*
+	Mandelbrot2.kpl --  Plot the Mandelbrot set, and allow user to zoom.
+
+	The user may interrupt a plot at any time by hitting any key.  They may
+	then zoom in using the left mouse button, or zoom out using the right
+	mouse button.  If the user drags the left button, then a square is 
+	presented which shows the new area to be plotted; else if he just clicks, 
+	then the new plot will zoom by a factor of ten onto the point indicated 
+	by the cursor.
+*/
+/*	HISTORY:
+	1.00  (unknown)  [First version, from the KPL download]  Displays the
+	Mandelbrot set.
+
+	1.01  06-Oct-05  [Ross A. Watkins]  Changed color scheme approach to use 
+	quasi-rainbow in 14 colors, which cycle repeated.  All points in the set 
+	(iterations exceed threshold) are displayed in white.  Corrected X:Y 
+	scaling factor to 1:1.  Allows user to abort plot by hitting a key.  User 
+	can then zoom in or out and get new plot.  Works great, but it's slow 
+	because of its compute-intensive nature coupled with an interpreted language.
+
+	1.011 16-Oct-05 [Jonah Stagner] Reduced the Threshhold value from 75 to 55
+	in order to increase rendering speed.  Since we are not using anti-aliasing, 
+	and there is not a huge difference in rendering quality, this allows us to 
+	more easily (and slightly more quickly) explore the zooming capabilitis.  In
+	addition, I changed the magnitude check such that rather than checking for 
+	Sqrt( XSquared + YSquared ) < 2.0, I removed the Sqrt function call (because
+	calculating square roots is slow) and squared the number on the right side to
+	result in (XSquared + YSquared) < 4.0, which has the same result on the final
+	image but renders in about 2/3 the time on my machine.  Fixed main loop where 
+	time to render was calculated from the start of the application, rather than
+	the start of the actual render, so that rendering a zoomed section now correctly
+	reports the render time. Kudos to Ross Watkins!!
+	
+	1.011 16-Oct-05 [Ross A. Watkins] Removed the calls to BeginFrame()/RefreshScreen()
+	because they didn't really add to the application and I noticed a 4% improvement 
+	in rendering time.  Removed call to PutPixel() when the pixel is in the set because
+	the screen is cleared to the background color before plotting anyway, which is the 
+	color that represents points in the set.
+	
+	1.012 17-Oct-05 [Ross A. Watkins] Removed call to Color() if looper = threshold,
+	because the background is already that color, and no call is made to PutPixel().
+*/
+/*	IDEAS:
+
+	-- It would be great if we could compile a KPL program into a stand-alone
+	executable file, which could then be sent to grandparents and the like but
+	did not require the KPL environment.
+	
+	-- The square-box drawing code is brute-force and could eventually fill 
+	the entire screen with black.  There has to be a more elegant way to drag 
+	a box without obscuring the underlying plot.  I tried this by scaling a one-
+	pixel thick black box outline sprite, but the center of the box was opaque
+	and the line got scaled too.  This did so not work!  There has got to be
+	a Windows system call we can make to facilitate a non-destructive selection
+	rectangle, which KPL could then tweak into the local screen coordinates.
+	
+	-- Still looking for a good coloring algorithm that goves smooth transition 
+	through the rainbow colors.
+	
+	-- Tried to add Julia sets in here too, but I used the wrong formula and
+	only got a translated version of the Mandelbrot set.
+*/
+
+Program Mandelbrot
+
+//	Structure RGBColor
+//		R	As Int
+//		G	As Int
+//		B	As Int
+//	End Structure
+
+//	Var ColorMap 		As RGBColor[256]
+	Var ColorMap2		As Int[100]
+	Var ColorSequence	As Int[14] 	= { Violet, DarkViolet, Indigo, DarkBlue, Blue, DarkCyan, Green, GreenYellow, Yellow, Goldenrod, Orange, DarkOrange, Red, Magenta }
+	
+	
+	Var backgroundColor	As Int		= White
+	
+	// The globals that define the actual plotting region.
+	// Let's keep the region sqare, please.
+	Var xmin 			As Decimal 	= -2.1
+	Var ymin 			As Decimal 	= -1.35
+	Var xmax 			As Decimal 	=  0.6
+	Var ymax 			As Decimal 	=  1.35
+	
+	// Globals used by the asynchronous button event routine.
+	Var zoomingIn		As Bool		= False
+	Var newCoords		As Bool		= False
+	Var xPos 			As Decimal
+	Var yPos 			As Decimal
+	Var xSpan 			As Decimal
+	Var ySpan 			As Decimal
+	Var xCenter			As Int
+	Var yCenter			As Int
+	Var halfSquareSize	As Int
+			
+	// Number of iteration before a point is considered to be in the set.
+	Var threshold		As Int		= 55
+
+
+	//
+	// SetColorMap -- set up the colors to be plotted
+	//
+	Method SetColorMap (threshold As Int)
+	
+		// This needs to be better.  I want a smooth transition through the colors of the rainbow,
+		// perhaps several up to the threshold limit.
+		Var index As Int
+		Var skip  As Int = 255 / threshold
+		
+//		For index = 1 To threshold
+//			ColorMap[index].R = index * index Mod 255
+//			ColorMap[index].G = index * skip
+//			ColorMap[index].B = 255 - Max( index, 128 )
+//		Next 
+		
+		For index = 1 To ArrayLength(ColorMap2)
+			ColorMap2[index] = ColorSequence[index Mod ArrayLength(ColorSequence) + 1]
+//			Trace("CM2[" + index + "] = " + ColorMap2[index])
+		Next
+		
+	End Method	
+
+
+	//
+	// PlotMandelbrot -- Calculate and plot the portion of the set corresponding to the arguments.
+	//
+	Function PlotMandelbrot(sizeX As Int, sizeY As Int, minX As Decimal, minY As Decimal, maxX As Decimal, maxY As Decimal, threshold As Int) As Bool
+
+		Trace ("PlotMandelbrot: S(" + sizeX + "," + sizeY + "), Min(" + minX + "," + minY + "), Max(" + maxX + "," + maxY + ")")
+		
+		Var x 			As Decimal
+		Var y 			As Decimal
+		Var x1 			As Decimal
+		Var y1 			As Decimal
+		Var xx 			As Decimal
+		
+		Var looper 		As Int
+		Var s 			As Int
+		Var z 			As Int
+		
+		Var integralX 	As Decimal = (maxX - minX) / sizeX
+		Var integralY 	As Decimal = (maxY - minY) / sizeY
+		Var xSquared	As Decimal
+		Var ySquared	As Decimal
+		
+		x = minX
+		For s = 1 To sizeX - 1
+		
+			y = minY
+			
+			For z = 1 To sizeY - 1
+			
+				x1 = 0
+				y1 = 0
+				xSquared = 0
+				ySquared = 0
+				looper = 0
+
+				// Check to see if the magnitude of the point has gone over two.
+				While looper < threshold And ( xSquared + ySquared ) < 4.0
+				
+					looper = looper + 1
+					xx = xSquared - ySquared + x
+					y1 = 2 * x1 * y1 + y
+					x1 = xx
+					xSquared = x1 * x1
+					ySquared = y1 * y1
+					
+				End While
+					
+				// Only call putpixel if we need to plot a point not in the set.
+				If looper <> threshold Then
+					Color(ColorMap2[looper])
+					PutPixel( s, z )
+				End If
+				
+				y = y + integralY
+			
+			Next
+			
+			x = x + integralX
+			
+			// Check for any key press to interrupt.
+			If GetKey() <> "" Then
+				Return False
+			End If
+		
+		Next
+		
+		RefreshScreen()
+		
+		Return True
+		
+	End Function
+	
+	
+	//
+	// GetNewCoordinates -- Allow the user to use the mouse and/or keyboard to get the dims of the next plot.
+	//
+	Method GetNewCoordinates ()
+		
+		// Reset the newCoords flag before setting up the mouse events.
+		newCoords = False
+
+		// Setup the mouse events, where all the work is really done.
+		//SetMouseEvent( "OnMouseEvent" )
+		OnMouseEvent( Mouse.Event, Mouse.X, Mouse.Y, Mouse.Button )
+
+		// Sit and spin until the mouse events finish their work.
+		//While newCoords = False
+		//End While
+		
+		// Disable mouse events.
+		//SetMouseEvent( "" )
+		
+	End Method
+
+
+	//
+	// OnMouseEvent -- The user interacts with the program to zoom in or out for the next plot.
+	//
+	Method OnMouseEvent( EventName As String, mouseX As Int, mouseY As Int, Button As Int )
+
+		Var delta			As Decimal
+		
+//		Trace(EventName + ": (" + mouseX + "," + mouseY + " B= " + Button)
+		
+		If EventName = "ButtonDown" Then
+			// Here's the point where the user clicked: the new center.
+			xCenter = mouseX
+			yCenter = mouseY
+			
+			If Button = 1 Then
+				halfSquareSize = 0
+				zoomingIn = True
+				Return
+			End If
+
+			If Button = 2 Then
+				// User is zooming out.  Calculate the new coordinates.
+//				Trace("Out: pos(" + xPos + "," + yPos + ") span(" + xSpan + "," + ySpan + ")")
+				xSpan = xmax - xmin		
+				ySpan = ymax - ymin
+				xPos = xCenter / ConvertToDecimal(ScreenWidth() ) * xSpan + xmin
+				yPos = yCenter / ConvertToDecimal(ScreenHeight()) * ySpan + ymin
+				xmin = xPos - xSpan
+				xmax = xPos + xSpan
+				ymin = yPos - ySpan
+				ymax = yPos + ySpan
+				
+				newCoords = True
+				Return
+			End If
+			
+			Return
+		End If
+		
+		If EventName = "ButtonUp" Then
+			If Button = 1 Then
+				xSpan = xmax - xmin		
+				ySpan = ymax - ymin
+				xPos = xCenter / ConvertToDecimal(ScreenWidth() ) * xSpan + xmin
+				yPos = yCenter / ConvertToDecimal(ScreenHeight()) * ySpan + ymin
+				// We're done.  Convert the square into coords.
+				// If the user clicked clicked without drawing a square, then zoom in with factor of ten.
+				If halfSquareSize = 0 Then
+					halfSquareSize = ScreenWidth()/20
+				End If
+				delta = xSpan * ConvertToDecimal(halfSquareSize) / ConvertToDecimal(ScreenWidth())
+//				Trace("xSpan=" + RoundToPlace(xSpan, 2) + " halfSquareSize=" + halfSquareSize + ", Width=" + ScreenWidth() + ", Delta=" + delta + ", Pos)" + xPos + "," + yPos + ")")
+				xmin = xPos - delta
+				xmax = xPos + delta
+				ymin = yPos - delta
+				ymax = yPos + delta
+				
+				zoomingIn = False
+				newCoords = True
+				Return
+			End If
+			Return
+		End If
+		
+		If EventName = "Move" And zoomingIn = True Then
+			// Translate the distance from the center into the HalfSquareSize and paint.
+			halfSquareSize = Abs(mouseX - xCenter)
+			
+			// Turn off the refresh until we're done painting.
+			BeginFrame()
+
+// Ugh, I think I have to do this with sprites, so as not to obliterate the plotting beneath.
+// I would still need to erase the last square I drew, which would eventually erase the entire thing.
+
+			Pen(False)
+			MoveTo(xCenter - halfSquareSize, yCenter - halfSquareSize)
+			Pen(True)
+			PenWidth(1)
+			Color(Black)
+			Rectangle(halfSquareSize * 2, halfSquareSize * 2, False)
+		
+			// Paint screen.
+			RefreshScreen()
+		End If
+			
+	End Method 
+	
+	
+	Method Main()
+	
+		SetDeviceCoordinates()
+		SetScreenSize( 800, 800 )
+		
+		Pen( False )
+		MoveTo( 50, 25 )
+		PrintLine( "Plotting a Mandelbrot set..." )
+		PrintLine( " " )
+		PrintLine( "This is an extremely complicated and slow process." )
+		PrintLine( "You may wish to grab a snack ;)" )
+		
+		Var StartTime As Decimal
+		
+		//While True
+		
+			SetColorMap(threshold)
+			
+			Status ("Plotting (" + RoundToPlace(xmin, 7) + "," + RoundToPlace(ymin, 7) + ") to (" + RoundToPlace(xmax, 7) + "," + RoundToPlace(ymax, 7) + ").  Hit any key to abort.")
+			
+			StartTime = TickCount()
+			If PlotMandelbrot(ScreenWidth(), ScreenHeight(), xmin, ymin, xmax, ymax, threshold) = True Then
+				Status (RoundToPlace( (TickCount() - StartTime) /1000, 2) + " seconds.  Left click to zoom in; right click to zoom out")
+				PlaySound( "Tada" )
+			Else
+				Status ("Aborted.  Left click to zoom in; right click to zoom out")
+				PlaySound( "PowerDown2" )
+			End If
+			
+			//GetNewCoordinates ()
+			
+			// Clear the screen.  backgroundColor = color of points in the set.
+			//Drawing.ClearBackground(backgroundColor)
+			
+		//End While
+		
+	End Method 
+	
+End Program 

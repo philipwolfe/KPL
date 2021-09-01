@@ -1,0 +1,1005 @@
+// KPL Implementation of Minesweeper 
+// Created by Brad Corbin
+// v1.5 completed March 15th, 2006
+// Difficulty level: Advanced
+//
+// Concepts:
+// 		Sprites and stamping. 
+//  	Using a one-dimentional array for two-dimentional data
+//  	Left and right-Mouse buttons, and both!
+//		Emulating drop-down menus
+// Lines of KPL code (including comments and whitespace): 1000
+//
+/* Major Changes in v1.5: (03/15/06 by BradC)
+	Performance Optimizations (compare a 30x30 with 30 mines to see the difference!)
+		Pre-calculates and stores the mine counts
+		Uses a queue of cells waiting to be cleared instead of recursion
+	Some graphics changes and additions (may need to delete the GIFs from MineSweeper 1.0)
+	Major Overhaul of mouse events for indents, drags, and both-button clicks
+	Added fully functional Game drop-down menu (all manually manipulated sprites!) 
+	Added keyboard shortcuts for new games and menu items
+		F2 - starts a new game
+		G: hotkey to open game menu (Alt-G doesn't work!)
+		N: New Game 		(using current settings - same as F2)
+		B: Beginner			( 9 rows x  9 cols x 10 mines)
+		I: Intermediate		(16 rows x 16 cols x 40 mines)
+		E: Expert			(16 rows x 30 cols x 99 mines)
+		C: Custom Size		(Uses console to prompt for each size and mine count)
+		Arrow keys and Enter - navigate the open menu
+*/
+
+Program MineSweeper
+
+	/**************************
+			Global Stuff
+	**************************/
+	Structure cell
+		mine As Bool				//Does this cell contain a mine?
+		clear As Bool				//Has this cell been cleared?
+		flag As Bool				//Has this cell been flagged?
+		minesnear As Int			//How many mines are in the surrounding cells?
+	End Structure
+
+	//Config Variables		
+	Define rows As Int = 16			//rows must be 9 or greater, limited only by screen space (Verified up to 50)
+	Define cols As Int = 16			//cols must be 9 or greater, limited only by screen space (Verified up to 100)
+	Define mines As Int = 40		//mines must be <= 999, and < 80% board density (Anything over 30% is nearly impossible to solve)
+
+	//Constants used for board spaceing and sprite positioning
+	Define MenuSpace As Int = 20		//Gap for the menu
+	Define TopSpace As Int = 53 		//Gap above the play area
+	Define LeftSpace As Int = 10		//Gap left of the play area
+	Define CellSize As Int = 16			//Size of each individual cell
+	Define HorizAdjust As Int = CellSize * (cols - 9)
+	Define VertAdjust As Int = CellSize * (rows - 9)
+	
+	//Internal Variables
+	Define Board As cell[cols * rows]	//Major variable holding the board state
+	Define MinesLeft As Int 			//Remaining mines to be found/marked
+	Define Queue As String				//List of cells in line to be cleared
+	Define GameStartTime As Decimal		//For Timer functionality
+	Define FirstClear As Bool 			//Don't let them bomb on the first click
+	Define GameOn As Bool				//Is the game currently running?
+	Define ImBusy As Bool 				//Don't process mouseevents if we're already doing something else
+	Define ArrowMove As Bool[2]			//Used to get around the GetKey bug for arrow keys
+	
+	//Variables for mouse events
+	Define LeftButton As Bool			//Is the left button being held down?
+	Define RightButton As Bool			//is the right button being held down?
+	Define BothButton As Bool			//are we coming off a both-down situation?
+	Define PushedCell As Int			//index of the currently pushed-in cell
+	Define MenuOpen As Bool				//Did they click to open the menu?
+	Define MenuHighlight As Int			//What item is highlighted in the menu?
+	Define ClickonSmile As Bool			//Did they click down on the reset smilie?
+	Define SmileFrame As Int			//last smile frame displayed on pushdown, reverts on mouseout
+
+	//Used to look "around" the cell
+	Define Offset As Int[9] = { (0 - rows - 1), (0 - rows), (0 - rows + 1), -1, 0, 1, (rows - 1), rows, (rows + 1) }	
+
+	/**************************
+			Main Stuff
+	**************************/
+	Method Main()
+		//start a new game with the current settings. ResizeBoard calls all the necessary setup routines
+		ResizeBoard(rows, cols, mines)
+		
+		SetMouseEvent("MouseMaster")
+
+		GameLoop()
+	End Method
+
+	Method GameLoop()
+		//Update the timer 10 times/sec IF a game has actually started (clock starts with the first cleared cell)
+		Define CurrentTime As Decimal 
+		Define TimeLastChecked As Decimal
+		While True
+			CurrentTime = TickCount()	
+			// If 100 milliseconds have not passed, don't do anything yet.
+			If (GameOn And CurrentTime - TimeLastChecked > 100) Then			
+				//Update the timer
+				If Not FirstClear Then
+					SetTimer((CurrentTime - GameStartTime) / 1000)
+				End If
+				// Reset the timer each time, so that we wait before updating again.
+				TimeLastChecked = CurrentTime
+			End If
+			If Not ImBusy Then
+				//Check for F2 key--start a new game
+				If IsKeyDown("F2") Then
+					DoMenuItem(1)
+				End If
+
+				//check for Enter, Up, or Down
+				If MenuOpen Then
+					CheckMenuKeys()
+				End If
+				
+				//See if any "normal" keys were pressed 
+				CheckKeyPress(GetKey())
+			End If
+			RefreshScreen()
+		End While
+	End Method	
+
+	Method CheckMenuKeys()
+		If IsKeyDown("Enter") Then
+			DoMenuItem(MenuHighlight)
+		End If
+
+		If IsKeyDown("Escape") Then
+			CloseMenu()
+		End If
+		
+		//this is necessary to keep it from scrolling too fast
+		If IsKeyDown("Up") Then
+			If Not ArrowMove[1] Then
+				RotateHighlight(False)
+			End If
+			ArrowMove[1] = True
+		Else
+			ArrowMove[1] = False
+		End If
+		If IsKeyDown("Down") Then
+			If Not ArrowMove[2] Then
+				RotateHighlight(True)
+			End If
+			ArrowMove[2] = True
+		Else
+			ArrowMove[2] = False
+		End If
+	End Method
+
+	Method CheckKeyPress(lastKey As String)
+		If lastKey <> "" Then
+			Select ToUpper(LastKey)
+			Case "G"					//Open game menu
+				ToggleMenu()
+				If MenuOpen Then
+					MoveMenuHighlight(1)
+				End If
+			End Case
+			Case "N"					//New game
+				DoMenuItem(1)			
+			End Case
+			Case "B"					//Beginner
+				DoMenuItem(2)
+			End Case
+			Case "I" 					//Intermediate
+				DoMenuItem(3)
+			End Case
+			Case "E"					//Expert
+				DoMenuItem(4)
+			End Case
+			Case "C"					//Custom
+				DoMenuItem(5)			
+			End Case
+			End Select
+		End If
+	End Method
+	
+	/**************************
+		Board Setup Stuff
+	**************************/
+
+	Method CustomBoard()
+		//stretch the screen to allow for the size of the console prompt
+		SetScreenSize(164 + horizadjust, 220 + MenuSpace + VertAdjust)
+		SetConsoleHeight(0)
+
+		Define newRows As Int = ConsoleReadInt("Enter # of Rows:", False)
+		Define newCols As Int = ConsoleReadInt("Enter # of Columns:", False)
+		Define newMines As Int = ConsoleReadInt("Enter # of Mines:", False)
+
+		HideConsole()
+		ResizeBoard(newRows, newCols, newMines)
+	End Method
+	
+	Method ResizeBoard(newRows As Int, newCols As Int, newMines As Int)
+		rows = Max(newRows, 9)	//minimum of 9 rows
+		cols = Max(newCols, 9)	//minimum of 9 columns
+		mines = Max(newMines, 1) //minimum of 1 mine
+				
+		HorizAdjust = CellSize * (cols - 9)
+		VertAdjust = CellSize * (rows - 9)
+		
+		//can't "re-dim" an array in KPL, so make a new one, and then copy it
+		Define newBoard As cell[cols * rows]
+		Board = newBoard
+		
+		Define newOffset As Int[9] = { (0 - rows - 1), (0 - rows), (0 - rows + 1), -1, 0, 1, (rows - 1), rows, (rows + 1) }	
+		Offset = newoffset
+		
+		ClearSprites()
+		Clear(White)
+		PreloadSprites()
+		InitializeScreen()
+		
+		StartGame()
+	End Method
+	
+	Method PreloadSprites()
+		//We will preload 3 separate sprites, for the different types of images.
+		//When we need them, we will just move the sprite in position, 
+		//adjust the frame using SetSpriteActiveFrame, Then STAMP it
+		LoadSprite("flag", "MineFlag.gif")
+		LoadSprite("number", "MineNum.gif")
+		LoadSprite("mine", "Mines.gif")
+	End Method
+
+	Method InitializeScreen()
+		//Stamp Up Left corner
+		LoadSprite("Background", "MineBoardUL.gif")
+		StampByXY("Background", 1, 1 + MenuSpace)
+		UnloadSprite("BackGround")
+		
+		//Stamp top edge and Up Right corner
+		LoadSprite("Background", "MineBoardUR.gif")
+		Define TempAdjust As Int = (9 * CellSize)
+		While TempAdjust <= (HorizAdjust + 9 * CellSize)
+			StampByXY("Background", LeftSpace + min(TempAdjust, HorizAdjust), 1 + MenuSpace)
+			TempAdjust = TempAdjust + 9 * CellSize
+		End While
+		UnloadSprite("BackGround")
+
+		//Stamp left edge and Down Left corner
+		LoadSprite("Background", "MineBoardDL.gif")
+		TempAdjust = (9 * CellSize)
+		While tempadjust <= (VertAdjust + 9 * CellSize)
+			StampByXY("Background", 1, TopSpace + min(tempAdjust, VertAdjust) + MenuSpace)
+			TempAdjust = TempAdjust + 9 * CellSize
+		End While
+		UnloadSprite("BackGround")
+		
+		//Stamp bottom and right edges, and Down Right corner
+		LoadSprite("Background", "MineBoardDR.gif")
+		//Stamp bottom edge
+		TempAdjust = (9 * CellSize)
+		While TempAdjust <= (HorizAdjust + 9 * CellSize)
+			StampByXY("Background", LeftSpace + min(TempAdjust, HorizAdjust), TopSpace + VertAdjust + MenuSpace)
+			TempAdjust = TempAdjust + 9 * CellSize
+		End While
+		//stamp right edge
+		TempAdjust = (9 * CellSize)
+		While tempadjust <= (VertAdjust + 9 * CellSize)
+			StampByXY("Background", LeftSpace + HorizAdjust, TopSpace + min(tempAdjust, VertAdjust) + MenuSpace)
+			TempAdjust = TempAdjust + 9 * CellSize
+		End While
+		UnloadSprite("BackGround")
+		
+		//Stamp boxes for Timer/Counter
+		LoadSprite("Background", "MineLEDBack.gif")
+		StampByXY("Background", 14, 13 + MenuSpace)						//Counter box on left
+		StampByXY("Background", 107 + HorizAdjust, 13 + MenuSpace)		//Timer box on right
+		UnloadSprite("BackGround")
+		
+		SetScreenSize(164 + horizadjust, 190 + vertadjust + MenuSpace)	//True height is 207. This function seems bugged
+
+		//Setup smilie face - real sprite, not a stamp
+		LoadSprite("smile", "MineSmile.gif")
+		MoveSpriteToPoint("smile", 69 + (HorizAdjust / 2), 13 + MenuSpace)
+		ShowSprite("smile")
+		
+		SetupCounter()
+		SetupTimer()
+		SetupMenu()
+	End Method
+
+	Method SetupCounter()
+		//Setup mine counter
+		LoadSprite("count100", "MineLED.gif")
+		MoveSpriteToPoint("count100", 15, 14 + MenuSpace)
+		ShowSprite("count100")
+		
+		LoadSprite("count010", "MineLED.gif")
+		MoveSpriteToPoint("count010", 28, 14 + MenuSpace)
+		ShowSprite("count010")
+		
+		LoadSprite("count001", "MineLED.gif")
+		MoveSpriteToPoint("count001", 41, 14 + MenuSpace)
+		ShowSprite("count001")
+	End Method
+
+	Method SetupTimer()
+		//Setup Timer
+		LoadSprite("timer100", "MineLED.gif")
+		MoveSpriteToPoint("timer100", 108 + HorizAdjust, 14 + MenuSpace)
+		ShowSprite("timer100")
+		
+		LoadSprite("timer010", "MineLED.gif")
+		MoveSpriteToPoint("timer010", 121 + HorizAdjust, 14 + MenuSpace)
+		ShowSprite("timer010")
+		
+		LoadSprite("timer001", "MineLED.gif")
+		MoveSpriteToPoint("timer001", 134 + HorizAdjust, 14 + MenuSpace)
+		ShowSprite("timer001")
+	End Method
+		
+	/**************************
+		Game Start Stuff
+	**************************/
+	Method StartGame()
+		CloseMenu()
+		ClearBoard()
+		PlantMines()
+		SetSmile(1)
+		SetTimer(0)
+		MinesLeft = mines
+		SetCounter(MinesLeft)
+		GameOn = True
+		FirstClear = True
+		Queue = ""
+	End Method
+
+	Method ClearBoard()
+		Define i As Int
+		SetSpriteActiveFrame("flag", 1)
+		For i = 1 To (rows * cols)
+			Board[i].mine = False
+			Board[i].flag = False
+			Board[i].clear = False
+			Board[i].minesnear = 0
+			StampByIndex("flag", i)
+		Next
+	End Method
+
+	Method PlantMines()
+		//Make sure we don't have too many mines
+		If mines > (rows * cols) * 0.8 Then		//can't be too dense. Really, >30% is probably unplayable
+			mines = (rows * cols) * 0.8
+		End If
+		If mines > 999 Then						//mine counter can't display more than 999
+			mines = 999
+		End If
+		Loop mines
+			PlantOneMine()
+		End Loop
+	End Method
+
+	Method PlantOneMine()
+		//choose a random cell
+		Define num As Int = Random(1, (cols * rows))
+		//Make sure that cell doesn't already have a mine
+		While Board[num].mine
+			num = Random(1, (cols * rows))	//choose a different one if it does
+		End While
+		Board[num].mine = True
+		AdjustCount(num, 1)
+	End Method
+	
+	Method AdjustCount(index As Int, adjustment As Int)
+		//Adjust the "minesnear" count of surrounding cells
+		//adjustment = 1 for counting up, -1 for counting down 
+		Define goodneighbors As Bool[9] = ValidNeighborArray(index)
+		Define i As Int
+		For i = 1 To 9
+			If goodneighbors[i] Then
+				Board[index + Offset[i]].minesnear = Board[index + Offset[i]].minesnear + adjustment
+			End If
+		Next
+	End Method
+	
+	/**************************
+		Menu Stuff
+	**************************/
+	Method SetupMenu()
+		LoadSprite("GameMenu", "MenuGame.gif")
+		MoveSpriteToPoint("GameMenu", 1, 1)
+		ShowSprite("GameMenu")
+
+		LoadSprite("GameHighlight", "MenuGameHighlight.gif")
+		MoveSpriteToPoint("GameHighlight", 1, 1)
+		SetSpriteZIndex("GameHighlight", 10)			//move in front of GameMenu
+
+		LoadSprite("OpenMenu", "MenuGameOpen.gif")
+		MoveSpriteToPoint("OpenMenu", 1, 1 + MenuSpace)
+		SetSpriteZIndex("OpenMenu", 20)					//move in front of counter and gameboard
+
+		LoadSprite("MenuHighlight", "MenuHighlight.gif")
+		SetSpriteZIndex("MenuHighlight", 30)			//move in front of OpenMenu
+		MoveMenuHighlight(0)
+	End Method
+	
+	Method ToggleMenu()
+		//Show or hide menu
+		MoveMenuHighlight(0)
+		If MenuOpen Then
+			HideSprite("GameHighlight")
+			HideSprite("OpenMenu")
+		Else
+			ShowSprite("GameHighlight")
+			ShowSprite("OpenMenu")
+		End If
+		MenuOpen = Not MenuOpen
+	End Method
+	
+	Method CloseMenu()
+		If MenuOpen Then
+			ToggleMenu()
+		End If
+	End Method
+
+	Method MoveMenuHighlight(position As Int)	
+		If MenuHighlight <> position Then		//don't do this unnecessarily
+			Select position
+			Case 0				//hide 
+				HideSprite("MenuHighlight")
+			End Case
+			Case 1				//"New game" - separated by a slight gap
+				MoveSpriteToPoint("MenuHighlight", 4, 4 + MenuSpace)
+				SetSpriteActiveFrame("MenuHighlight", 1)
+				ShowSprite("MenuHighlight")
+			End Case
+			Case Else			//All others - all consecutive
+				MoveSpriteToPoint("MenuHighlight", 4, MenuSpace + 17 * position - 4)
+				SetSpriteActiveFrame("MenuHighlight", position)
+				ShowSprite("MenuHighlight")
+			End Case
+			End Select		
+			MenuHighlight = position
+		End If
+	End Method
+
+	Method RotateHighlight(down As Bool)
+		If down Then					//down arrow
+			If MenuHighlight = 5 Then
+				MoveMenuHighlight(1)
+			Else
+				MoveMenuHighlight(MenuHighlight + 1)
+			End If
+		Else							//up arrow
+			If MenuHighlight < 2 Then
+				MoveMenuHighlight(5)
+			Else
+				MoveMenuHighlight(MenuHighlight - 1)
+			End If		
+		End If
+	End Method
+
+	Method CheckMenu(EventName As String, Button As Int)
+		//Menu isn't currently open, but they either moused over or clicked
+		If EventName = "ButtonDown" And Button = 1 Then			//show the menu on a click
+			ToggleMenu()
+		End If
+		If eventname = "Move" Then								//turn the game menu blue on mousemove
+			ShowSprite("GameHighlight")
+		End If
+	End Method
+
+	Method MouseMenu(EventName As String, X As Int, Y As Int, Button As Int)
+		Define onMenu As Bool = SpriteContainsPoint("OpenMenu", x, y)
+		Define onHighlight As Bool = (SpriteContainsPoint("MenuHighlight", x, y) And (MenuHighlight > 0))
+		Define onGame As Bool = SpriteContainsPoint("gamemenu", x, y)
+			
+		//Left MouseUP on the open menu (execute the appropriate command)
+		If onHighlight And EventName = "ButtonUp" And Button = 1 Then
+			DoMenuItem(MenuHighlight)
+		End If
+		
+		//Left MouseDown on Game Menu (close menu, but keep the blue highlight)
+		If onGame And Button = 1 And (EventName = "ButtonDown") Then
+			CloseMenu()
+			ShowSprite("GameHighlight")
+		End If
+		
+		//Left MouseUp or Down on somewhere else (close the menu and return to normal)
+		If (Not onMenu) And (Not onGame) And Button = 1 And (EventName = "ButtonDown" Or EventName = "ButtonUp") Then
+			CloseMenu()
+		End If
+		
+		//Mouse-move -- either move the blue highlight to a new menu item, or hide it altogether
+		If EventName = "Move" Then
+			If onMenu Then
+				If Not onHighlight Then
+					MoveMenuHighlight(0)
+					If (y >= 4 + MenuSpace) And (y < 21 + MenuSpace) Then
+						MoveMenuHighlight(1)
+					End If
+					If (y >= 30 + MenuSpace) And (y < 98 + MenuSpace) Then
+						MoveMenuHighlight((y - MenuSpace + 4)/17)
+					End If
+				End If
+			Else
+				MoveMenuHighlight(0)
+			End If
+		End If
+		
+	End Method
+	
+	Method DoMenuItem(item As Int)
+		ImBusy = True
+		Select item
+		Case 1					//New game, current settings
+			StartGame()			
+		End Case
+		Case 2					//Beginner
+			ResizeBoard(9, 9, 10)	
+		End Case
+		Case 3 					//Intermediate
+			ResizeBoard(16, 16, 40)
+		End Case
+		Case 4					//Expert
+			ResizeBoard(16, 30, 99)
+		End Case
+		Case 5					//Custom
+			CloseMenu()
+			CustomBoard()			
+		End Case
+		End Select
+		ImBusy = False
+	End Method
+	
+	/**************************
+		  The Mouse Stuff
+	  (The click starts here!)
+	**************************/
+	Method MouseMaster( EventName As String, X As Int, Y As Int, Button As Int )
+		Define index As Int
+		Define OnSmile As Bool
+		If Not ImBusy Then									//ignore mouse events if we're already busy
+			ImBusy = True
+			index = GetCell(x,y)							//what cell was the click/move?
+			OnSmile = SpriteContainsPoint("smile", x, y)	//did they click on start?
+			If MenuOpen Then							//do menu stuff
+				MouseMenu(EventName, x, y, Button)
+			Else
+				If SpriteContainsPoint("gamemenu", x, y) Then	//show the menu
+					CheckMenu(EventName, button)
+				Else									//do "normal" stuff
+					Select EventName
+					Case "ButtonDown"
+						ButtonDown(Button, index, onSmile)			//made separate methods to keep each one compact
+					End Case
+					Case "ButtonUp"
+						ButtonUp(Button, index, onSmile)
+					End Case
+					Case "Move"
+						MouseMove(index, onSmile)					//Move event doesn't care about buttons
+					End Case
+					End Select
+				End If
+			End If	
+			ImBusy = False
+		End If
+	End Method
+	
+	Method ButtonDown(Button As Int, index As Int, onSmile As Bool)
+		//Smile Left Click - push it in
+		If onSmile And Button = 1 Then
+			ClickonSmile = True
+			SetspriteActiveFrame("smile", 5)
+		End If
+		
+		//Board Left Click - indent the cell
+		If (Button = 1) And (Not OnSmile) And GameOn And (Not IsKeyDown("LShiftKey")) And (Not IsKeyDown("RShiftKey")) Then
+			LeftButton = True
+			SetSmile(4)
+			If (Not RightButton) Then
+				PushIn(index)
+				PushedCell = index
+			End If
+		End If
+		
+		//Board Right Click - flag the cell
+		If (Button = 2)  And (Not OnSmile) And GameOn Then
+			RightButton = True
+			If (index > 0) And GameOn And (Not LeftButton) Then
+				If Not Board[index].Clear Then
+					FlagCell(index)
+				End If
+			End If
+		End If
+				
+		//Shift-left click, same as both buttons down
+		If (Button = 1) And (Not OnSmile) And GameOn And (IsKeyDown("LShiftKey") Or IsKeyDown("RShiftKey")) Then
+			LeftButton = True
+			RightButton = True 	//fake a both-click
+		End If
+		
+		//Both buttons down
+		If LeftButton And RightButton And GameOn Then
+			If index > 0 Then
+				PushBlockIn(index)		
+			End If				
+			PushedCell = index
+			BothButton = True
+		End If
+	End Method
+	
+	Method ButtonUp(Button As Int, index As Int, onSmile As Bool)
+		//Smile up click - Start a new game if we had already clicked DOWN on it
+		If  ClickonSmile And (Button = 1) Then
+			ClickonSmile = False
+			If onSmile Then
+				StartGame()
+			End If
+		End If
+				
+		//Left up click - Clear the cell (by adding it to the queue)
+		If Button = 1 And LeftButton And (Not RightButton) Then
+			ClickonSmile = False
+			LeftButton = False
+			If GameOn And Not BothButton Then
+				If (index > 0) Then
+					AddtoQueue(index)
+					ProcessEntireQueue()
+				End If
+				SetSmile(1)
+			End If
+			BothButton = False
+		End If
+		
+		//Right up click - ignore it (we already flagged on mousedown)
+		If Button = 2 And (Not LeftButton) Then
+			RightButton = False
+			BothButton = False
+		End If
+		
+		//Release either button from both being down
+		If LeftButton And RightButton Then
+			If button = 1 Then
+				LeftButton = False
+			Else
+				RightButton = False
+			End If
+			If (index > 0) And GameOn Then
+				If Board[index].Clear Then
+					ClearBlock(index)
+					ProcessEntireQueue()
+				Else
+					PushBlockOut(index)
+				End If
+			End If
+			SetSmile(1)
+		End If
+
+		If DidweWin() Then
+			GameWon()
+		End If
+	End Method	
+	
+	Method MouseMove(index As Int, onSmile As Bool)
+		//revert to white game menu, if necessary
+		HideSprite("GameHighlight")
+
+		//Smile drag - up or down on the button
+		If ClickonSmile Then
+			If onsmile Then
+				SetSpriteActiveFrame("smile", 5)		
+			Else
+				SetSpriteActiveFrame("smile", SmileFrame)		
+			End If
+		End If
+		
+		//Left-drag - move the indented cell, unless we're already there
+		If (Not onSmile) And (LeftButton) And (Not RightButton) And (Not BothButton) And (PushedCell <> index) Then
+			PushOut(PushedCell)
+			PushIn(index)
+			PushedCell = index
+		End If
+		
+		//Both-drag - move the indented block
+		If (Not onSmile) And (LeftButton) And (RightButton) And (PushedCell <> index) Then
+			PushBlockOut(PushedCell)
+			If index > 0 Then
+				PushBlockIn(index)
+			End If
+			PushedCell = index
+		End If
+	End Method
+	
+	Method PushIn(index As Int)
+		If index > 0 Then
+			//don't push down a cleared or flagged cell
+			If ((Not Board[index].Clear) And (Not Board[index].flag)) Then
+				SetSpriteActiveFrame("number", 1)
+				StampByIndex("number", index)
+			End If
+		End If
+	End Method
+	
+	Method PushOut(index As Int)
+		If Index > 0 Then
+			If ((Not Board[index].Clear) And (Not Board[Index].flag)) Then
+				SetSpriteActiveFrame("flag", 1)
+				StampByIndex("flag", index)
+			End If
+		End If
+	End Method
+	
+	Method PushBlockIn(index As Int)
+		//Push in all cells in a 3x3 block
+		Define goodneighbors As Bool[9] = ValidNeighborArray(index)
+		goodneighbors[5] = True		//include the current cell
+		Define i As Int
+		For i = 1 To 9
+			If goodneighbors[i] Then
+				PushIn(index + Offset[i])
+			End If
+		Next
+	End Method
+	
+	Method PushBlockOut(index As Int)
+		//Release the push in a 3x3 block
+		Define goodneighbors As Bool[9] = ValidNeighborArray(index)
+		goodneighbors[5] = True
+		Define i As Int
+		For i = 1 To 9
+			If goodneighbors[i] Then
+				PushOut(index + Offset[i])
+			End If
+		Next
+	End Method
+	
+	/**************************
+	 	Main Game Routines 
+	**************************/
+	Method ClearCell(index As Int)
+		//Ignore if already cleared or flagged
+		If ((Not Board[index].Clear) And (Not Board[index].flag)) Then
+			//If necessary, move a bomb so the first click doesn't explode
+			While (FirstClear And Board[index].mine) 
+				Board[index].mine = False
+				AdjustCount(index, -1)
+				PlantOneMine()
+			End While	//loop it just in case we randomly picked the original cell
+			//Clear the cell
+			Board[index].Clear = True
+			If Board[index].mine Then				//BOOOOM!!!
+				SetSpriteActiveFrame("mine", 2)		//Red mine
+				StampByIndex("mine", index)
+				GameLost()
+			Else
+				SetSpriteActiveFrame("number", Board[index].minesnear + 1)
+				StampByIndex("number", index)
+				If Board[index].minesnear = 0 Then
+					ClearSurrounding(index)
+				End If
+			End If
+			If FirstClear Then
+				FirstClear = False
+				GameStartTime = TickCount()			//Start the timer at the first cleared cell
+			End If
+		End If
+
+	End Method
+	
+	Method ClearBlock(index As Int)
+		//See if the surrounding flagged cells = the minecount of the current cell
+		Define goodneighbors As Bool[9] = ValidNeighborArray(index)
+		Define FlagCount As Int = 0
+		Define i As Int
+		For i = 1 To 9
+			If goodneighbors[i] Then
+				If Board[index + Offset[i]].Flag Then
+					FlagCount = FlagCount + 1
+				End If
+			End If
+		Next
+		If FlagCount = Board[index].minesnear Then
+			ClearSurrounding(index)
+		Else
+			PushBlockOut(index)
+		End If
+	End Method
+	
+	Method FlagCell(index As Int)
+		//toggle the flag
+		Board[index].flag = Not(Board[index].flag)
+		//select the right icon
+		If Board[index].flag Then
+			SetSpriteActiveFrame("flag", 2)
+			MinesLeft = MinesLeft - 1
+		Else
+			SetSpriteActiveFrame("flag", 1)
+			MinesLeft = MinesLeft + 1
+		End If
+		SetCounter(MinesLeft)
+		//stamp it
+		StampByIndex("flag", index)
+	End Method
+	
+	Method ClearSurrounding(index As Int)
+		Define goodneighbors As Bool[9] = ValidNeighborArray(index)
+		Define i As Int
+		For i = 1 To 9
+			If goodneighbors[i] Then
+				AddtoQueue(index + Offset[i])
+			End If
+		Next
+	End Method
+	
+	Function ValidNeighborArray(index As Int) As Bool[]
+		//Returns an array of the valid directions from the current cell
+		//This is important if the piece is on an edge
+		//These are the numeric directions:		
+		//		1 4 7
+		// 		2 5 8
+		// 		3 6 9
+		
+		Define col As Int = GetCol(index)
+		Define row As Int = GetRow(index)
+		Define Neighbors As Bool[ 9 ] = { True, True, True, True, False, True, True, True, True }
+		//	5 (the cells itself) is not a valid neighbor--it would lead to endless loops
+	
+		If row = 1 Then				//top row
+			Neighbors[1] = False
+			Neighbors[4] = False
+			Neighbors[7] = False
+		End If
+		If row = rows Then			//bottom row
+			Neighbors[3] = False
+			Neighbors[6] = False
+			Neighbors[9] = False
+		End If
+		If col = 1 Then				//left column
+			Neighbors[1] = False
+			Neighbors[2] = False
+			Neighbors[3] = False
+		End If
+		If col = cols Then			//right column
+			Neighbors[7] = False
+			Neighbors[8] = False
+			Neighbors[9] = False
+		End If
+	
+		Return Neighbors
+	End Function
+
+	Method AddtoQueue(index As Int)
+		//The queue is a comma-delimited list of cells waiting to be cleared
+		If StringLength(Queue) = 0 Then
+			Queue = "" + index
+		Else
+			Queue = Queue + "," + index
+		End If
+	End Method
+	
+	Method ProcessQueue()
+		//Move the Queue into an array, and clear it so more can be added
+		Define Items As String[] = Split(Queue, ",")
+		Queue = ""
+		
+		Define i As Int
+		For i = 1 To ArrayLength(Items)
+			ClearCell(items[i])
+		Next
+	End Method		
+	
+	Method ProcessEntireQueue()
+		While GameOn And (StringLength(Queue) > 0)
+			ProcessQueue()
+		End While
+	End Method
+		
+	/**************************
+  	   	Winning and Losing
+	**************************/
+	Function DidweWin() As Bool
+		//If all non-mines have been cleared, its a win
+		//We don't care if mines are marked or not
+		Define i As Int
+		
+		For i = 1 To (cols * rows)
+			If ((Not Board[i].mine) And (Not Board[i].clear)) Then
+				//bail when we find the first uncleared non-mine
+				Return False
+			End If
+		Next
+		Return True
+	End Function
+
+	Method GameWon()
+		SetSmile(3)			//Show Cool Face
+		SetCounter(0)
+		Define i As Int
+		For i = 1 To (rows * cols)
+			//Flag remaining uncleared mines
+			If Board[i].mine And Not Board[i].flag Then
+				SetSpriteActiveFrame("flag", 2)
+				StampByIndex("flag", i)
+			End If
+		Next
+		GameOn = False
+	End Method
+	
+	Method GameLost()
+		SetSmile(2)			//Show Frownie Face
+		Define i As Int
+		For i = 1 To (rows * cols)
+			//Show remaining mines (the hit mine shows as "cleared", so it will stay red)
+			If Board[i].mine And (Not Board[i].clear) And (Not Board[i].flag) Then
+				SetSpriteActiveFrame("mine", 1)			//black mine
+				StampByIndex("mine", i)
+			End If
+			//Show incorrectly flagged mines
+			If Board[i].flag And Not Board[i].mine Then
+				SetSpriteActiveFrame("mine", 3)			//red X on mine
+				StampByIndex("mine", i)
+			End If
+		Next
+		GameOn = False
+	End Method
+	
+	/**************************
+			Other Stuff
+	**************************/
+	Method SetSmile(frame As Int)
+		SmileFrame = frame						//keeps track of last frame for mouseout, mouseover events
+		SetSpriteActiveFrame("smile", frame)
+	End Method
+	
+	Method StampByIndex(SpriteName As String, index As Int)
+		//convert to row and column number
+		Define col As Int = GetCol(index)
+		Define row As Int = GetRow(index)
+		//convert to (x,y) screen dimentions
+		Define x As Int = LeftSpace + CellSize * (col - 1)
+		Define y As Int = TopSpace + CellSize * (row - 1) + MenuSpace
+
+		StampByXY(SpriteName, x, y)
+	End Method
+	
+	Method StampByXY(SpriteName As String, x As Int, y As Int)
+		MoveSpriteToPoint(SpriteName, x, y)
+		StampSprite(SpriteName)		//not necessary to make it visible first
+	End Method
+	
+	Method SetTimer(seconds As Int)
+		//top out at 999 seconds
+		If seconds > 999 Then			
+			seconds = 999
+		End If
+		Define text As String = getDigitString(seconds)
+		
+		SetSpriteActiveFrame("Timer100", getDigit(Substring(Text,1,1)))
+		SetSpriteActiveFrame("Timer010", getDigit(Substring(Text,2,1)))
+		SetSpriteActiveFrame("Timer001", getDigit(Substring(Text,3,1)))
+	End Method
+	
+	Method SetCounter(count As Int)
+		Define text As String = getDigitString(count)
+		If count < 0 Then			//show a negative sign
+			SetSpriteActiveFrame("Count100", 11)
+		Else						//show the first digit
+			SetSpriteActiveFrame("Count100", getDigit(Substring(Text,1,1)))
+		End If
+		SetSpriteActiveFrame("Count010", getDigit(Substring(Text,2,1)))
+		SetSpriteActiveFrame("Count001", getDigit(Substring(Text,3,1)))
+	End Method
+
+	Function getDigitString(value As Int) As String
+		//Make it a string 3 digits long (pad zeros if necessary)
+		Define text As String = ConvertToString(abs(value))
+		While  StringLength(text) < 3 
+			text = "0" + text
+		End While
+		Return text
+	End Function
+
+	Function getDigit(strDigit As String) As Int
+		Return ConvertToInt(strDigit) + 1
+	End Function
+	
+	Function GetCell(x As Int, y As Int) As Int
+		//Find the mine cell from the mouse click coordinates
+		Define col As Int
+		Define row As Int
+		If ((x < LeftSpace) Or (y < TopSpace + MenuSpace) Or (x >= (LeftSpace + CellSize * cols)) Or (y >= (TopSpace + CellSize * rows + MenuSpace))) Then
+			Return 0 //off the board
+		Else	//integer division, will ignore remainder
+			col = (x - LeftSpace) / CellSize + 1
+			row = (y - TopSpace - MenuSpace) / CellSize + 1
+			Return ((col - 1) * rows + row)
+		End If
+	End Function
+	
+	Function GetCol(index As Int) As Int
+		Return ((index - 1) / rows) + 1
+	End Function
+
+	Function GetRow(index As Int) As Int
+		//this is integer division, so "(a/b)*b" isn't just "a"
+		Return index - (((index - 1) / rows) * rows)
+	End Function
+
+End Program

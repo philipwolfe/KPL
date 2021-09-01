@@ -1,0 +1,345 @@
+Program FamilyPuzzle
+
+	// Difficulty: Beginner - Intermediate 
+	// Concepts: Mouse events, Planes, Random, Sounds, Structures, Arrays
+	// Lines of KPL code: 207
+	// Author: Guillem Reinoso (AD)
+	// Date: 2006-06-30
+	
+	// Comments:
+	// Two spoken languages are available: English And French.
+	// To add a language, record all the spoken words in the desired language,
+	// save the words in separated files in a new language folder. Names of
+	// the files must match the existing names.
+	// To activate a language, just initialize the global variable gLanguage to
+	// the name of the language folder.
+
+	Structure Piece
+		Name As String            // Name of the piece
+		Width As Int              // Its width
+		Height As Int             // Its height
+		DestinationX As Int       // Its destination exact coordinates
+		DestinationY As Int       //    ''
+
+		ZIndex As Int             // Its plane
+		PosX As Int               // Its current position
+		PosY As Int               //    ''
+		Placed As Bool            // Is it correctly placed?
+	End Structure
+	
+	Structure SelectedPiece
+		Number As Int             // Number of the selected piece
+		Name As String            // Its name ("" if no piece is selected)
+		DestinationXMin As Int    // The rectangle where the piece can be placed to be considered
+		DestinationXMax As Int    //   as correctly placed.
+		DestinationYMin As Int    //   The rectangle is calculated taking into account gPrecision
+		DestinationYMax As Int    //   and the destination exact coordinates of the piece
+		DeltaX As Int             // Mouse position relative to 
+		DeltaY As Int             //   the piece position
+	End Structure
+	
+	Define gLanguage As String = "English"
+	Define gPieceList As String[] = { "Father,25,8", "Mother,132,11", "Grandfather,242,23", "Grandmother,355,39", "Son,486,80", "Daughter,597,92" }
+	Define gNbPieces As Int = ArrayLength(gPieceList)
+	Define gPieces As Piece[gNbPieces]
+	Define gSelectedPiece As SelectedPiece
+	Define gPlacedPieces As Int
+	Define gPrecision As Int = 15
+	Define gInGameNow As Bool
+	
+	// Load all needed sprites
+	Method LoadSprites()
+	
+		Define pieceProperties As String[]
+		Define i As Int
+		
+		// Loads the pieces setting their dimension and position
+		For i = 1 To gNbPieces
+			pieceProperties = Split(gPieceList[i], ",")
+			LoadSprite(pieceProperties[1], pieceProperties[1] + ".png")
+			gPieces[i].Name = pieceProperties[1]
+			gPieces[i].Width = GetSpriteWidth(pieceProperties[1])
+			gPieces[i].Height = GetSpriteHeight(pieceProperties[1])
+			gPieces[i].DestinationX = pieceProperties[2]
+			gPieces[i].DestinationY = pieceProperties[3]
+		Next
+		
+		// Loads the board
+		LoadSprite("Board", "Family.png")
+		
+	End Method
+	
+	// Shuffle the pieces and start a new game.
+	Method NewGame()
+	
+		Define zIndexs As String
+		Define oY As Int
+		Define i As Int
+		
+		// List of diferent planes for the pieces
+		zIndexs = ""
+		For i = 1 To gNbPieces
+			zIndexs = zIndexs + ConvertToString(i)
+		Next
+		
+		// Shuffle the pieces and calculates their new inicial position
+		oY = GetSpriteHeight("Board")
+		For i = 1 To gNbPieces
+			gPieces[i].PosX = Random(30, ScreenWidth() - gPieces[i].Width - 30)
+			gPieces[i].PosY = oY + Random(10, ScreenHeight() - oY - gPieces[i].Height - 10)
+			gPieces[i].Placed = False
+			
+			// Select a random plane
+			gPieces[i].ZIndex = Substring(zIndexs, Random(1, StringLength(zIndexs)), 1)
+			zIndexs = StringReplace(zIndexs, gPieces[i].ZIndex, "")
+			SetSpriteZIndex(gPieces[i].Name, gPieces[i].ZIndex)
+		Next
+
+		gSelectedPiece.Name = ""
+		gPlacedPieces = 0
+		gInGameNow = True
+
+	End Method
+	
+	// Prepare the screen.
+	Method PrepareScreen()
+
+		Define i As Int
+		
+		BeginFrame()
+		
+		// Clears the screen
+		Clear(White)
+		
+		// Draws the board permanently
+		MoveSpriteToPoint("Board", 0, 0)
+		StampSprite("Board")
+
+		// Move sprites to their positions
+		For i = 1 To gNbPieces
+			MoveSpriteToPoint(gPieces[i].Name, gPieces[i].PosX, gPieces[i].PosY)
+			ShowSprite(gPieces[i].Name)
+		Next
+
+		RefreshScreen()
+		
+	End Method
+	
+	// Drop a piece. Test if the piece is correctly placed or not.
+	Method DropPiece()
+
+		Define name As String
+		Define ok As Bool
+		Define oxPiece As Int
+		Define oyPiece As Int
+		Define oxHole As Int
+		Define oyHole As Int
+		Define i As Int
+		
+		// Test if the piece is correctly placed
+		name = gSelectedPiece.Name
+		ok = False
+		If GetSpriteLeft(name) >= gSelectedPiece.DestinationXMin Then
+			If GetSpriteLeft(Name) <= gSelectedPiece.DestinationXMax Then
+				If GetSpriteTop(name) >= gSelectedPiece.DestinationYMin Then
+					If GetSpriteTop(name) <= gSelectedPiece.DestinationYMax Then
+						ok = True
+					End If
+				End If
+			End If
+		End If
+		
+		// If it is
+		If ok Then
+			PlaySound(gLanguage + "/Yes.wav")
+
+			// Adjust the piece to its exact final position
+			MoveSpriteToPoint(name, gPieces[gSelectedPiece.Number].DestinationX, gPieces[gSelectedPiece.Number].DestinationY)
+			
+			gPieces[gSelectedPiece.Number].Placed = True
+			gPlacedPieces = gPlacedPieces + 1
+
+		// If it is not
+		Else
+			// Test the piece has been dropped in the wrong hole
+			//- Gets the center of the piece
+			oxPiece = (gPieces[gSelectedPiece.Number].Width / 2) + GetSpriteLeft(name)
+			oyPiece = (gPieces[gSelectedPiece.Number].Height / 2) + GetSpriteTop(name)
+			
+			//- Test if the center is near the center of any hole
+			For i = 1 To gNbPieces
+				// Gets the center of the hole
+				oxHole = (gPieces[i].Width / 2) + gPieces[i].DestinationX
+				oyHole = (gPieces[i].Height / 2) + gPieces[i].DestinationY
+				
+				// Compare the two centers
+				If oxPiece >= oxHole - (gPrecision * 2) Then
+					If oxPiece <= oxHole + (gPrecision * 2) Then
+						If oyPiece >= oyHole - (gPrecision * 4) Then
+							If oyPiece <= oyHole + (gPrecision * 4) Then
+								PlaySound(gLanguage + "/No.wav")
+							End If
+						End If
+					End If
+				End If
+			Next
+		End If
+
+		// Unselect the piece
+		gSelectedPiece.Name = ""
+		
+	End Method
+
+	// Grab the uppest piece exactly under the mouse cursor.
+	Method GrabPiece(X As Int, Y As Int)
+	
+		Define number As Int
+		Define i As Int
+		Define ZIndex As Int
+		
+		// Look for the list of pieces exactly under the mouse pointer
+		// We memorize the uppest one
+		number = 0
+		ZIndex = 0
+		For i = 1 To gNbPieces
+	    	If SpriteContainsPoint(gPieces[i].Name, X, Y) Then
+				If gPieces[i].ZIndex >= ZIndex Then
+					number = i
+					ZIndex = gPieces[i].ZIndex
+				End If
+			End If
+		Next
+		
+		// If a piece has been selected
+		If number <> 0 Then
+			// Play its name
+			PlaySound(gLanguage + "/" + gPieces[number].Name + ".wav")
+			
+			// Bring it to the top of the other pieces
+			BringPieceToTop(number)
+			RefreshScreen()
+			
+			// Select the piece
+			gSelectedPiece.Number = number
+			gSelectedPiece.Name = gPieces[number].Name
+			gSelectedPiece.DestinationXMin = gPieces[number].DestinationX - gPrecision
+			gSelectedPiece.DestinationXMax = gPieces[number].DestinationX + gPrecision
+			gSelectedPiece.DestinationYMin = gPieces[number].DestinationY - gPrecision
+			gSelectedPiece.DestinationYMax = gPieces[number].DestinationY + gPrecision
+			gSelectedPiece.DeltaX = GetSpriteLeft(gPieces[number].Name) - X
+			gSelectedPiece.DeltaY = GetSpriteTop(gPieces[number].Name) - Y
+			
+			// If it was a piece correctly placed, unplace it
+			If gPieces[gSelectedPiece.Number].Placed Then
+				gPieces[gSelectedPiece.Number].Placed = False
+				gPlacedPieces = gPlacedPieces - 1
+			End If
+		End If
+					
+	End Method
+	
+	// Manage mouse events
+	Method MouseEvents( EventName As String, X As Int, Y As Int, Button As Int )
+	
+		// If we are not in a game, we look for a mouse button click
+		If Not gInGameNow Then
+			If EventName = "ButtonDown" Then
+				gInGameNow = True
+			End If
+
+		// If we are in a game
+		Else
+			// If the mouse has moved
+			If EventName = "Move" Then
+				// Move the selected piece if one is selected
+				If gSelectedPiece.Name <> "" Then
+					MoveSpriteToPoint(gSelectedPiece.Name, gSelectedPiece.DeltaX + X, gSelectedPiece.DeltaY +Y)
+				End If
+			Else
+				// If left button of the mouse has been pushed
+				If (EventName = "ButtonDown") And (Button = 1) Then
+					// If a piece is selected, drop it
+					If gSelectedPiece.Name <> "" Then
+						DropPiece()
+					// If no piece is selected, grab the piece under the mouse cursor
+					Else
+						GrabPiece(X, Y)
+					End If
+				End If
+			End If
+		End If
+		
+	End Method
+
+	// Brings a piece to the top changing its plane.
+	Method BringPieceToTop(PieceNumber As Int)
+	
+		Define i As Int
+		Define currentPlane As Int
+
+		// Gets current plane of the managed piece
+		currentPlane = gPieces[PieceNumber].ZIndex
+
+		// Review all the pieces to adjust their plane
+		For i = 1 To gNbPieces
+			// If it's the piece to manage
+			If i = PieceNumber Then
+				// We force it's plane to the top plane
+				gPieces[i].ZIndex = gNbPieces
+				SetSpriteZIndex(gPieces[i].Name, gPieces[i].ZIndex)
+				
+			// If it's not the piece to manage
+			Else
+				// If the piece is actually on top of the managed piece
+				If gPieces[i].ZIndex >= currentPlane Then
+					// We change it's plane to one plane underneath
+					gPieces[i].ZIndex = gPieces[i].ZIndex - 1
+					SetSpriteZIndex(gPieces[i].Name, gPieces[i].ZIndex)
+				End If				
+			End If
+		Next
+
+	End Method
+
+	// Game entry point
+	Method Main()
+
+		// Loads sprites to the memory
+		LoadSprites()
+		
+		// Prepare the screen size in relation to the board size
+		SetScreenSize(GetSpriteWidth("Board"), GetSpriteHeight("Board") * 2)
+		
+		// Inicialize the mouse event handler
+		SetMouseEvent("MouseEvents")
+
+		// Main loop
+		While True
+			// Start a game
+			NewGame()
+			
+			// Prepare the screen
+			PrepareScreen()
+			
+			// While all the pieces haven't been placed
+			While gPlacedPieces < gNbPieces
+				// Nothing to do here as all actions
+				// are managed by the mouse event handler
+				
+				// Give to Windows the oportunity to handle events
+				Delay(1)
+			End While
+			
+			// Play Good sound
+			Delay(1000)
+			PlaySound(gLanguage + "/Good.wav")
+			
+			// Wait for the left button of the mouse to be pushed
+			gInGameNow = False
+			While Not gInGameNow
+			End While
+		End While
+
+	End Method
+
+End Program

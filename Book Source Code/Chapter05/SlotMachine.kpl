@@ -1,0 +1,185 @@
+//Program: SlotMachine.kpl
+//Created: 01/04/2008
+//Version: 1.0
+//Author: Jerry Lee Ford, Jr.
+//Description: This Phrogram game simulates a three-dial Las Vegas style 
+//             casino slot machine.
+
+Program SlotMachine
+
+	//Global constant used to store the name of the game
+	Constant GameTitle As String = "The Slot Machine Game"
+	
+	Method Main()
+	
+		Define Reply As Boolean = False        //Used to store player input
+		Define Msg As String                   //Stores a display string
+		Define Result As String                //Stores the game results
+		Define i As Integer                    //Controls loop execution
+		Define PlayerAccount As Integer = 10   //Player begins with $10
+		Define FirstDial As Integer      //Represents a slot machine dial
+		Define SecondDial As Integer     //Represents a slot machine dial
+		Define ThirdDial As Integer      //Represents a slot machine dial
+		Define Total As Integer          //Used in calculating spin results
+		Define Message As String         //Used to display console messages
+		
+        HideToolbar()   //Prevent the window's toolbar from being displayed
+ 		SetScreenSize(408, 400)    //Set the screen size to 600x400 pixels
+        SetWindowTitle(GameTitle)  //Display the name of the game in the
+                                   //Window's titlebar
+        
+		SetConsoleBackgroundColor(WhiteSmoke)        //Set background color
+		
+        // Set console font style to Bold, non-italic and non-underline
+        SetConsoleFontStyle(True, False, False)
+				
+		SetConsoleTextAlignment("Center")    //Set text alignment to center
+		
+		//Outline the text of the game's welcome message
+		Msg = "Welcome To " + GameTitle + "!  Are You Ready To Play?"
+		
+		//Display the game's welcome message in a popup dialog window and
+		//prompt the player to click on Yes to play the game or No to quit
+		Reply = Confirm(Msg, GameTitle)
+		
+		//Analyze the player's response
+		If Reply = True Then            //If Reply equals True then the
+                                        //player clicked on the Yes button
+			
+			ClearConsole()              //Clear the console
+			
+			SetConsoleFont("Arial", 18)          // Set font to Arial, point 18
+			
+			//Begin displaying the rules for playing the game
+			ConsoleWriteLine("")
+			ConsoleWriteLine("Game Rules:")
+			ConsoleWriteLine("")
+			
+			SetConsoleFont("Arial", 12)          // Set font to Arial, point 12
+			
+			//Continue displaying the rules for playing the game
+			ConsoleWriteLine("Your account has 10 dollars in it.")
+			ConsoleWriteLine("")
+			ConsoleWriteLine("Match 3 numbers to win 2 dollars.")
+			ConsoleWriteLine("")
+			ConsoleWriteLine("Match 2 numbers to win 1 dollar.")
+			ConsoleWriteLine("")
+			ConsoleWriteLine("No matches will cost you 5 dollars.")
+			ConsoleWriteLine("")
+			ConsoleWriteLine("The game ends if you go broke.")
+			ConsoleWriteLine("")
+			ConsoleWriteLine("")
+			ConsoleWriteLine("")
+			ConsoleWriteLine("")
+			ConsoleWriteLine(" Press any key to begin playing.")
+			
+			Console.ReadKey()           //Wait for the player to press a key
+			
+			While True                  //Create a loop that runs forever
+
+				ClearConsole()
+				
+				For i = 1 To 10  //Loop 19 times 
+					
+					SetConsoleFont("Arial", 48)    // Set font to Arial, point 48
+					SetConsoleFontColor(DarkRed)
+					
+					ConsoleWriteLine("")
+					ConsoleWrite(Random(1, 3) + "    ") 
+					ConsoleWrite(Random(1, 3) + "    ") 
+					ConsoleWriteLine(Random(1, 3))
+				
+					Delay(300)
+				
+					ClearConsole()          //Clear the console
+				
+				Next	
+								
+				FirstDial = Random(1, 3)  //Display a random number in the 1st dial
+				SecondDial = Random(1, 3) //Display a random number in the 2nd dial
+				ThirdDial = Random(1, 3)  //Display a random number in the 3rd dial
+				
+				//Add the results of all three spins together
+				Total = FirstDial + SecondDial + ThirdDial
+				
+				//A value of 3 or 9 means that 2 dials match
+				If Total = 3 Or Total = 9 Then
+					PlayerAccount = PlayerAccount + 2
+					Message = " Three matches. You win 2 dollars!"
+				End If
+				
+				//A value of 6 means either 3 matches or no matches
+				If Total = 6 Then      //Three 2s were generated
+					If FirstDial = SecondDial Then
+						PlayerAccount = PlayerAccount + 2
+						Message = " Three matches. You win 2 dollars!"
+					Else               //There were no matches
+						PlayerAccount = PlayerAccount - 5
+						Message = " No match. You lose 5 dollars."
+					End If
+				End If
+				
+				//A value other than 3, 6, or 9 means there were 2 matches
+				If Total <> 3 And Total <> 6 And Total <> 9 Then
+					PlayerAccount = PlayerAccount + 1
+					Message = " Two matches. You win 1 dollar!"
+				End If
+				
+				//Display the final spin
+				ConsoleWriteLine("")
+				ConsoleWriteLine(FirstDial + "    " + SecondDial +  "    " + ThirdDial)
+				ConsoleWriteLine("")
+					
+				SetConsoleFont("Arial", 18)          // Set font to Arial, point 18
+				
+				SetConsoleFontColor(DarkBlue)        //Set font color to DarkBlue
+				
+				ConsoleWriteLine(Message)            //Display spin results
+				
+				//Continue displaying final spin
+				ConsoleWriteLine("")
+				ConsoleWriteLine(" Account Balance: " + PlayerAccount)
+				ConsoleWriteLine("")
+				ConsoleWriteLine("")
+				ConsoleWriteLine("")
+				
+				SetConsoleFont("Arial", 12)          // Set font to Arial, point 12
+				
+				SetConsoleFontColor(Black)           //Set font color to Black
+				
+				//Game play ends if the player goes broke
+				If PlayerAccount <= 0 Then
+					
+					//Notify the player that the game is over
+					ConsoleWriteLine("Sorry. You have gone broke. Game Over!")
+					
+					Console.ReadKey()    //Wait for the player to press a key
+					
+					//Thank the player for taking the time to play
+					Alert("Thank you for playing!", GameTitle)
+					
+					Break   //Break out of the game loop to terminate application execution
+					
+				Else  //The player's account still has a positive balance
+					
+					//Display instructions
+					ConsoleWriteLine(" Press any key to spin again.")
+					
+					Console.ReadKey()    //Wait for the player to press a key
+					
+				End If
+				
+			End While
+					
+		Else    //Execute the following statements when the player clicks 
+                //on the No button
+			
+			//Display a message in a popup window inviting the player to 
+			//play again another time
+			Alert("OK. Perhaps another time.", GameTitle)		
+			
+		End If		
+
+	End Method
+
+End Program

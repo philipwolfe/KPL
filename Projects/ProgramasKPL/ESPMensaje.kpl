@@ -1,0 +1,21 @@
+
+// Todos los programas KPL inician con la palabra "Program" seguia del 
+// nombre de tu programa, y terminan con las palabras "End Program".
+Program MessageBox
+
+	// Este es el punto inicial del programa, y es 'llamado'
+	// automáticamente por KPL cuando se ejecuta el programa.
+	//
+	// Para expandir este método, da doble-clic en el cuadro de abajo o da clic
+	// en el símbolo de MÁS ubicado a la izquierda de las palabras "Method Main()"
+	Method Main()
+	
+		If Confirm( "¿Quisieras recibir $1000 gratis?", "Responde a la pregunta por favor" ) Then
+			Alert( "Lo siento, no los tengo.", "Malas Noticias" )
+		Else
+			Alert( "¿Por qué no?", "¿Cómo?" )
+		End If
+		
+	End Method
+
+End Program

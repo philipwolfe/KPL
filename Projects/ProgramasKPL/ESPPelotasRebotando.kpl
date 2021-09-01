@@ -1,0 +1,99 @@
+Program PelotasRebotando
+
+	Define CuentaPelotas As Int = 75
+	
+	Define Pelota As String[ CuentaPelotas ]
+	Define X As Int[ CuentaPelotas ]
+	Define Y As Int[ CuentaPelotas ]
+	Define DeltaX As Int[ CuentaPelotas ]
+	Define DeltaY As Int[ CuentaPelotas ]
+	
+	Define XMax As Int = 700
+	Define YMax As Int = 500
+	
+	Define I As Int
+	
+	Method MuevePelota( I As Int )
+	
+		X[i] = X[i] + DeltaX[i]
+		Y[i] = Y[i] + DeltaY[i]
+		
+		MoveSpriteToPoint( Pelota[i], X[i], Y[i] )
+	
+	End Method
+	
+	Method Animate()
+	
+		Define Intersecciones As String[]
+		Define TieneIntersecciones As Bool
+		
+		BeginFrame()
+		
+		For I = 1 To CuentaPelotas
+		
+			Intersecciones = GetSpritesThatIntersectWith( Pelota[i] )
+			TieneIntersecciones = (ArrayLength(Intersecciones) > 0)
+			
+			If X[i] + DeltaX[i] < 0 Or X[i] + DeltaX[i] > XMax Or TieneIntersecciones Then
+				DeltaX[i] = DeltaX[i] * -1
+			End If
+			
+			If Y[i] + DeltaY[i] < 0 Or Y[i] + DeltaY[i] > YMax Or TieneIntersecciones Then
+				DeltaY[i] = DeltaY[i] * -1
+			End If
+			
+			MuevePelota( I )
+		
+		Next
+		
+		RefreshScreen()
+	
+	End Method 
+	
+	Method MAIN()
+	
+		// Cambia a las coordenadas de la computadora
+		// en vez de las coordenadas algebráicas
+		SetDeviceCoordinates()
+		SetScreenSize( 400, 400 )
+		
+		XMax = ScreenWidth() - 20
+		YMax = ScreenHeight() - 20
+		
+		Define Columna As Int = 1
+		Define Renglon As Int = 1
+		
+		For I = 1 To CuentaPelotas
+		
+			If Columna < 12 Then
+				Columna = Columna + 1
+			Else
+				Columna = 1
+				Renglon = Renglon + 1
+			End If
+			
+			Pelota[ I ] = "BALL" + I
+			X[ I ] = Columna * 30
+			Y[ I ] = Renglon * 30
+			
+			While DeltaX[i] = 0
+				DeltaX[ I ] = Random( -2, 2 )
+			End While
+			
+			While DeltaY[i] = 0
+				DeltaY[ I ] = Random( -2, 2 )
+			End While
+			
+			LoadSprite( Pelota[i], "BlueBall.png" )
+			MoveSpriteToPoint( Pelota[i], X[i], y[i] )
+			ShowSprite( Pelota[i] )
+		
+		Next
+		
+		While True
+			Animate()
+		End While
+	
+	End Method
+
+End Program 

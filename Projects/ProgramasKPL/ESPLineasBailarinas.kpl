@@ -1,0 +1,221 @@
+Program LineasBailarinas
+// Dificultad: Principiante - Intermedio
+// Conceptos: Estructuras, Arreglos
+// Autor: L.F.Serflaten
+
+// Este es un algoritmo común en protectores de pantalla que dibuja
+// varias líneas en la pantalla (similares al protector de pantalla
+// Mystify que se incluye en Windows).
+
+// Para producir este efecto, los puntos finales de las líneas se guardan
+// en un arreglo que puede visualizarse como un círculo de elementos lineales.
+// Cada elemento lineal del círculo tiene los valores necesarios para dibujar
+// una línea. ( Vea DrawLine(X1, Y1, X2, Y2) )  Las líneas son 
+// dibujadas con color desde un elemento lineal de un lado del círculo, 
+// mientras se dibujan en negro (borrándose) de los elementos lineales que
+// están en el lado opuesto del círculo.  
+
+// El círculo se recorre un poco y nuevamente las líneas se 
+// dibujan a color en un lado del círculo, y se borran en el otro. Conforme
+// el círculo recorre cada elemento, las lineas dibujadas se mantienen en
+// la pantalla hasta que ese elemento llega al lado que se borra.  Esto puede
+// ser una manera de entender lo que pasa, las líneas son elementos de varios
+// arreglos, y DibujaIndice y BorraIndice se van incrementando sobre
+// esos arreglos, dejando un poco de espacio entre ellos.
+
+
+// La estructura contiene los arreglos que definen los 4 valores que se 
+// necesitan para dibujar una línea.  Cada valor puede moverse independiente
+// de los otros, así cada uno de los 4 arreglos requiere un valor de Delta 
+// (cambio) asociado al arreglo (DX1, DX2, DY1, DY2).  También las elementos
+// lineales DibujaIndice y BorraIndice, así como su color,  se almacenan
+// en la estructura para usarse al dibujar las líneas.
+
+// En la estructura, 50 representa el espacio que se mantiene entre
+// el dibujo y el borrado. El espacio real se selecciona de manera 
+// aleatoria.  El valor del espacio real determina cuántas líneas se dejan
+// en la pantalla entre el dibujado y el borrado. 
+
+Structure Bailarin
+	X1 As Int[50]
+	Y1 As Int[50]
+	X2 As Int[50]
+	Y2 As Int[50]
+	DX1 As Int
+	DY1 As Int
+	DX2 As Int
+	DY2 As Int
+	DibujaIndice As Int
+	BorraIndice As Int
+	Color As Int
+End Structure
+
+
+Method Main()
+	// Todas las variables necesarias se declaran en este mismo sitio.
+	Define XMax As Int
+	Define YMax As Int
+	Define BailarinesMax As Int
+	Define LineasMax As Int 
+	Define indiceLinea As Int
+	Define indiceDibuja As Int
+	Define indiceAnterior As Int
+	Define indiceBorra As Int
+	Define blrn As Bailarin
+	
+	// Este es el arreglo que define cuántas líneas tendremos
+	Define Bailarines As Bailarin[5]
+	
+	// Inicializamos la pantalla
+	Maximize()
+	SetDeviceCoordinates()
+	Clear(8)
+
+	// Al almacenar los valores que se usan frecuentemente en variables locales
+	// puede mejorar el desempeño.  Si la función que calcula los valores es
+	// compleja, y/o los valores se utilizan muchas veces, las variables locales
+	// serán accesadas un poco más rápidamente que llamando una función cada vez.
+	// Dependienco de que tanto se van a utilizar los valores, el retraso acumulado
+	// puede llegar a ser significativo.  Aquí, los valores ScreenWidth y ScreeHeight
+	// se almacenarán en variables locales.
+	
+	XMax = ScreenWidth() 
+	YMax = ScreenHeight()
+	
+	// Se determinan los valores BailarinesMax y LineasMax
+	BailarinesMax = ArrayLength(Bailarines)
+	LineasMax = ArrayLength(Bailarines[1].X1)
+	
+	// Inicializamos los arreglos
+	For indiceLinea = 1 To BailarinesMax
+		// Esto proporciona una referencia al elemento de línea actual
+		// de una forma más sencilla (blrn nos ayuda a teclear menos)
+		blrn = Bailarines[indiceLinea]
+		
+		// Se eleije un color y una valor de separación inicial
+		blrn.Color = Random(1, 140)
+		blrn.BorraIndice = 1
+		blrn.DibujaIndice = Random(3, ArrayLength(blrn.X1))
+		indiceDibuja = blrn.DibujaIndice
+
+		// Seleccionamos puntos aleatorios en la pantalla (lejos de las orillas)
+		blrn.X1[indiceDibuja] = Random( 18, XMax - 19)
+		blrn.Y1[indiceDibuja] = Random( 18, YMax - 19)
+ 		blrn.X2[indiceDibuja] = Random( 18, XMax - 19)
+		blrn.Y2[indiceDibuja] = Random( 18, YMax - 19)
+		
+		// Seleccionamos los valores de cambio, rechazamos cualquier valor 0.
+		// los 0 significarían que un punto se moviera arriba-abajo (DX = 0)
+		// ó izquierda-derecha (DY = 0) y eso no se vería muy bien.
+		While (blrn.DX1 = 0) Or (blrn.DY1 = 0)
+			blrn.DX1 = Random(-3, 3) * 2
+			blrn.DY1 = Random(-3, 3) * 2
+		End While
+		While (blrn.DX2 = 0) Or (blrn.DY2 = 0)
+			blrn.DX2 = Random(-3, 3) * 2
+			blrn.DY2 = Random(-3, 3) * 2
+		End While
+	Next
+	
+	// Este es el ciclo de dibujo principal.  Además del dibujo,
+	//las líneas deben animarse en cada iteración del ciclo.
+	
+	While True
+	
+		// Cancelamos la actualización de la pantalla hasta terminar de dibujar
+		BeginFrame()
+	
+		For indiceLinea = 1 To BailarinesMax
+		
+			// Nuevamente, usamos blrn por conveniencia, y las variables mencionadas
+			// para los índices, en vez de utilizar el nombre completo de cada una.
+			blrn = Bailarines[indiceLinea]
+			indiceDibuja = blrn.DibujaIndice
+			
+			// Almacena el índice del elemento línea anterior para animarlo
+			indiceAnterior = indiceDibuja
+			
+			// Mueve el índice al siguiente elemento (rotando el círculo)
+			indiceDibuja = indiceDibuja + 1
+			
+			// Si llegamos al final del arreglo, regresamos al principio
+			If indiceDibuja > LineasMax Then
+			
+				// Reinicia el índice hasta el inicio del arreglo.
+				indiceDibuja = 1
+				
+				// Hay ' 1 posibilidad en 20' de cambiar el color.
+				// Pero fíjate que esto solo ocurre cuando indiceDibuja ha
+				// excedido la longitud del arreglo.
+				If Random(1, 20) = 10 Then
+					blrn.Color = Random(1, 140)
+				End If
+				
+			End If
+			
+			// Guarda el valor para la próxima vez que se dibuje esta línea
+			blrn.DibujaIndice = indiceDibuja
+			
+			// El índice de borrado se maneja en la misma forma que 
+			// el índice de dibujo, menos en la opción de cambio de color.
+			indiceBorra = blrn.BorraIndice + 1
+			If indiceBorra > LineasMax Then
+				indiceBorra = 1
+			End If
+			blrn.BorraIndice = indiceBorra
+
+			
+			// Aquí se animan 4 valores.  Si el punto está fuera del área
+			// de la pantalla, el valor Delta se invierte para provocar el
+			// movimiento hacia la dirección contraria.
+
+			// Primero se aplica el cambio...	
+			blrn.X1[indiceDibuja] = blrn.X1[indiceAnterior] + blrn.DX1
+			
+			// Después probamos si el nuevo valor está dentro de los límites
+			If (blrn.X1[indiceDibuja] < 0) Or (blrn.X1[indiceDibuja] > XMax) Then
+				// Si está fuera de la pantalla, cancelamos el incremento
+				// y convertimos el valor DX en negativo (se invierte).
+				blrn.X1[indiceDibuja] = blrn.X1[indiceAnterior] - blrn.DX1
+				blrn.DX1 = -1 * blrn.DX1
+			End If
+			// Lo mismo ocurre con los valores de las 4 líneas:
+			blrn.Y1[indiceDibuja] = blrn.Y1[indiceAnterior] + blrn.DY1
+			If (blrn.Y1[indiceDibuja] < 0) Or (blrn.Y1[indiceDibuja] > YMax) Then
+				blrn.Y1[indiceDibuja] = blrn.Y1[indiceAnterior] - blrn.DY1
+				blrn.DY1 = -1 * blrn.DY1
+			End If
+			blrn.X2[indiceDibuja] = blrn.X2[indiceAnterior] + blrn.DX2
+			If (blrn.X2[indiceDibuja] < 0) Or (blrn.X2[indiceDibuja] > XMax) Then
+				blrn.X2[indiceDibuja] = blrn.X2[indiceAnterior] - blrn.DX2
+				blrn.DX2 = -1 * blrn.DX2
+			End If
+			blrn.Y2[indiceDibuja] = blrn.Y2[indiceAnterior] + blrn.DY2
+			If (blrn.Y2[indiceDibuja] < 0) Or (blrn.Y2[indiceDibuja] > YMax) Then
+				blrn.Y2[indiceDibuja] = blrn.Y2[indiceAnterior] - blrn.DY2
+				blrn.DY2 = -1 * blrn.DY2
+			End If
+			
+			// Después de animar las líneas, ya las podemos dibujar.
+
+			// Borro
+			Color(8)
+			DrawLine(blrn.X1[indiceBorra], blrn.Y1[indiceBorra], blrn.X2[indiceBorra], blrn.Y2[indiceBorra])
+
+			// Dibujo
+			Color(blrn.Color)
+			DrawLine(blrn.X1[indiceDibuja], blrn.Y1[indiceDibuja], blrn.X2[indiceDibuja], blrn.Y2[indiceDibuja])
+		Next
+		
+		// Después de dibujar todas las líneas, es el momento de mostrarlas
+		// en la pantalla.
+		RefreshScreen()
+	
+	End While		
+			
+	
+	
+
+End Method
+
+End Program

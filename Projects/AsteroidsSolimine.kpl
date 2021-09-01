@@ -1,0 +1,1211 @@
+// Difficulty level: Intermediate to Advanced
+// Concepts: Sprites, key input, vectors, collisions
+// KPL Lines: 1200, counting lots of comments
+// Author: John Solimine and his kids
+
+Program Asteroids
+
+	/********************************
+			Structures
+	 ********************************/
+	
+	// Keeps track of the direction a sprite is heading
+	Structure Vector
+		X				As Decimal
+		Y				As Decimal
+	End Structure
+	
+	// Location and heading info for the player ship
+	Structure ShipSprite
+		SpriteName	 	As String
+		X			 	As Decimal
+		Y			 	As Decimal
+		Heading		 	As Decimal
+		IsAlive		 	As Bool
+		DiedAt			As Decimal
+		Frame		 	As Int
+		HyperJumping 	As Bool
+		Speed			As Decimal
+	// Determines how fast the ship moves and rotates per second.
+		Acceleration	As Decimal
+		Movement		As Vector
+		Accelerating	As Bool
+		RotationSpeed	As Int
+		LastFrameTime	As Decimal
+	End Structure
+	
+	// Location and heading info for player bullets.
+	Structure MissileSprite
+		SpriteName	  	As String
+		X			   	As Decimal
+		Y			   	As Decimal
+		DirectionInfo	As Vector
+		Visible		 	As Bool
+		TimeFired		As Decimal
+	End Structure
+	
+	// Location and heading info for Asteroids.
+	Structure AsteroidSprite
+		SpriteName	  	As String
+		X			   	As Decimal
+		Y			   	As Decimal
+		DirectionInfo	As Vector
+		Speed			As Decimal
+		Scale			As Decimal
+		Visible		 	As Bool
+	End Structure 
+	
+	// Information necessary to make an explosion sprite
+	Structure ExplosionSprite
+		SpriteName		As String
+		FrameCount		As Int
+		CurrentFrame	As Int
+		IsActive		As Bool
+		LastFrameTime	As Int
+	End Structure
+	
+	/********************************
+			Global Variables
+	 ********************************/
+	
+	// This value is used in calculating angles and rotation for sprite movement.
+	// It was made into a variable to make it easier to read, and so that we don't 
+	// have to calculate the same value in multiple places.
+	Define piOver180 As Decimal = (3.14159 / 180.0)
+	
+	// Tracks the amount of time it took to draw the last frame, which is used in
+	// calculating how much to move every sprite during each pass through the 
+	// main game loop.
+	Define secondsPerFrame As Decimal = 0.0
+	
+	// The player ship information.
+	Define Ship As ShipSprite
+	Define shipHeight As Decimal
+	Define shipWidth As Decimal
+	
+	// Specifies the maximum number of missiles that may be active at any
+	// given time, and how many pixels per second they travel
+	Define MaxMissiles As Int = 5 // 5 "bullets" at a time on screen
+	Define VisiblePlayerMissiles As Int
+	Define missileHeight As Int
+	Define MaxLRM As Int = 5 // Long Range Missiles - Only 5 available per level
+	Define MissileSpeed As Decimal = 500
+	// Missiles can only be fired at set minimum intervals.  These variables
+	// specify how much time (in ms) must have passed since the last missile was 
+	// fired before another can be fired.
+	Define LastMissileFireTime As Int = 0
+	Define PlayerMissileFireDelay As Int = 150
+	Define LastLRMFireTime As Int = 0
+	Define LRMFireDelay As Int = 500
+	// Holds information about player missiles.
+	Define Missiles As MissileSprite[ MaxMissiles ] // bullets
+	Define LRM As MissileSprite[ MaxLRM ] // long range Missiles
+	Define LRMsLeft As Int
+	Define LRMHeight As Int
+	Define LRMWidth As Int
+	
+	// Holds information about all active explosions
+	Define Explosions As ExplosionSprite[ 10 ]
+	
+	// Holds information about asteroids.
+	Define MaxAsteroids As Int = 100
+	Define Asteroids As AsteroidSprite[ MaxAsteroids ]
+	Define MinAsteroidSize As Int = 5 // Asteroids get smaller each level until this minimum is reached
+	Define SmallestVisibleAsteroid As Int = 30
+	Define NumberOfAsteroids As Int
+	
+	// Hold information about player health
+	Define Lives As Int = 3 // Initial lives
+	Define MaxLives As Int = 10
+	Define PlayerScore As Int = 0
+	Define AdditionalLifeScore As Int = 0
+	Define NewLifeAfter As Int = 100 // A new life is gained for each 100 points
+	Define PlayerLevel As Int = 0
+	Define GamePaused As Bool = False
+	
+	/********************************
+				Score/Status
+	 ********************************/
+	
+	Method LoadLifeCounter()
+
+		Define X As Int = 25
+		Define Y As Int = 25
+		Define I As Int
+		Define NextSprite As String
+		
+		For I = 1 To MaxLives
+			NextSprite = "Life" + i
+			LoadSprite( NextSprite , "Ship1Top.gif" )
+			ScaleSprite( NextSprite , 0.1 )
+			RotateSprite( NextSprite , 90 ) 
+			MoveSpriteToPoint( NextSprite, X * i , Y )
+			SetSpriteCanCollide( NextSprite , False )
+			HideSprite( NextSprite )
+			SetSpriteZIndex( NextSprite, 6000 + i )
+		Next
+		
+	End Method
+	
+	Method DisplayLivesLeft()
+
+		Define I As Int
+		
+		For I = 1 To MaxLives
+			If Lives > I Then
+				ShowSprite( "Life" + I )
+			Else
+				HideSprite( "Life" + I )
+			End If
+		Next
+		
+	End Method
+	
+	Method LoadScoreBoard()
+		Define X As Int = ScreenWidth() - 75
+		Define Y As Int = 25
+		Define I As Int
+		Define NextSprite As String
+		
+		For i = 1 To 6
+			NextSprite = "Digit" + i
+			LoadSprite( NextSprite, "flip_09.gif" )
+			SetSpriteCanCollide( NextSprite, False)
+			SetSpriteZIndex( NextSprite, 5000 + i )
+			SetSpriteActiveframe( NextSprite, 1 )
+			ScaleSprite( NextSprite, 2 )
+			MoveSpriteToPoint( NextSprite, X , Y )
+			X = GetSpriteLeft(NextSprite) - GetSpriteWidth(NextSprite)
+			ShowSprite( NextSprite )
+		Next
+	
+	End Method
+	
+	Method UpdateScoreBoard()
+		Define current As Int 
+		Define Digit As Int
+		Define i As Int
+		current = PlayerScore // don't want to destroy the original score
+			
+		// Since the graphic for the score is actually a 10 frame GIF with each frame
+		// corresponding to the next number we must break apart the score into individual
+		// digits and have the corresponding Sprite display that frame.  This is done
+		// through a technique of stripping out the lowest digit one at a time like so...
+		// consider... current = 47813
+		
+		// repeat these two lines until there are no more digits!
+		// Digit = 47813 mod 10 = 3
+		// Current = 47813 / 10 = 4781
+		
+		For i = 1 To 6
+			Digit = current Mod 10
+			current = current / 10
+				// The frame that corresponds to the digit "0" is actually frame 1 so we must
+				// add 1 to the Digit in order to point to the proper frame
+			SetSpriteActiveFrame( "Digit" + i, Digit + 1 )
+		Next
+		
+	End Method
+	
+	Method LoadLRMCounter()
+
+		Define X As Int = 10
+		Define Y As Int = 80
+		Define I As Int
+		Define NextSprite As String
+		
+		For I = 1 To MaxLRM
+			NextSprite = "LRMDisplay" + i
+			LoadSprite( NextSprite , "missile1.gif" )
+			ScaleSprite( NextSprite , 0.5 )
+			RotateSprite( NextSprite , 270 ) 
+			MoveSpriteToPoint( NextSprite , X + 15 * i - 1 , Y )
+			SetSpriteCanCollide( NextSprite , False )
+			HideSprite( NextSprite )
+			SetSpriteZIndex( NextSprite, 4000 + i )
+		Next
+		
+	End Method
+	
+	Method DisplayLRMsLeft()
+
+		Define I As Int
+		
+		For I = 1 To MaxLRM
+			If LRMsLeft >= I Then
+				ShowSprite( "LRMDisplay" + I )
+			Else
+				HideSprite( "LRMDisplay" + I )
+			End If
+		Next
+		
+	End Method
+	
+	/********************************
+				Ship
+	 ********************************/
+	
+	Method LoadShip()
+		
+		// Determines how fast the ship moves and rotates per second.
+		Ship.Movement = StandStill()
+		Ship.Acceleration = 100
+		Ship.Accelerating = False
+		Ship.RotationSpeed = 180
+
+		Ship.X = ScreenWidth() / 2
+		Ship.Y = ScreenHeight() / 2
+		LoadSprite( "Ship", "Ship1Top.gif" )
+		ScaleSprite( "Ship", 0.25 )
+		shipHeight = GetSpriteHeight("Ship") / 2
+		shipWidth = GetSpriteWidth("Ship") / 2
+		MoveSpriteToPoint( "Ship", Ship.X, Ship.Y )
+		SetSpriteZIndex( "Ship", 1000 )
+
+		Ship.SpriteName = "Ship"
+		Ship.IsAlive = True
+		RotateSprite( Ship.SpriteName, Ship.Heading )		
+		ShowSprite( "Ship" )
+				
+	End Method
+	 
+	Method RotateShip( Heading As Decimal )
+
+		Ship.Heading = Ship.Heading + AdjustForFrameRate( Heading )
+		RotateSprite( Ship.SpriteName, Ship.Heading )
+
+	End Method
+	
+	Method MoveShip()
+	
+		Define NewDirection As Vector
+		NewDirection = CalculateVector(Ship.heading)
+		
+		Define amountOfMovement As Vector	
+		amountOfMovement.x = AdjustForFrameRate( Ship.Acceleration ) * NewDirection.x * Ship.Accelerating
+		amountOfMovement.y = AdjustForFrameRate( Ship.Acceleration ) * NewDirection.y * Ship.Accelerating
+		
+		Define OldSpeed As Vector
+		OldSpeed = Ship.Movement
+		
+		Define NewSpeed As Vector
+		NewSpeed.x = OldSpeed.x + amountOfMovement.x
+		NewSpeed.y = OldSpeed.y + amountOfMovement.y
+		
+		// Limit the max speed
+		If Sqrt( NewSpeed.x * NewSpeed.x + NewSpeed.y * NewSpeed.y ) > 350 Then
+			// if new speed is to fast then use the old speed
+			NewSpeed = Ship.Movement
+		Else
+			// if new speed is not fast then update the old speed
+			Ship.movement = NewSpeed
+		End If
+
+		Ship.x = Ship.x - AdjustForFrameRate( NewSpeed.x )
+		Ship.y = Ship.y - AdjustForFrameRate( NewSpeed.y )
+		
+		// keep the ship on the screen
+		If Ship.x < -70 Then
+			Ship.x = ScreenWidth() + 10
+		Else
+			If Ship.x > ScreenWidth() + 20 Then
+				Ship.x = -40
+			End If
+		End If
+		
+		If ship.Y < -60   Then
+			ship.Y =ScreenHeight() + 20 
+		Else
+			If ship.Y > ScreenHeight() + 20 Then
+				ship.Y = -40
+			End If
+		End If
+		
+		MoveSpriteToPoint( Ship.SpriteName, Ship.X, Ship.Y )
+
+	End Method
+	
+	Method SolidifyShip()
+		Define Timeline As Int[3]
+		
+		Timeline[1] = 250
+		Timeline[2] = 250
+		Timeline[3] = 250
+		
+		// Tell KPL to automate it for us, using the timeline 
+		// we created above.  When the animation is done, we
+		// want it to start over.
+		SetSpriteAnimationTimeline( "Ship", True, Timeline )
+		SetSpriteCanCollide("Ship",True)
+			
+	End Method
+	
+	Method ResetShip()
+		
+		Ship.Movement = StandStill()
+		Ship.X = ScreenWidth() / 2
+		Ship.Y = ScreenHeight() / 2
+		Ship.IsAlive = True
+		MoveSpriteToPoint( "Ship", Ship.X, Ship.Y )
+		ShowSprite( "Ship" )
+		// start the ship in a "Materializing from HyperJump Mode"
+		Ship.Frame = 11
+		SetSpriteCanCollide("Ship",False)
+	
+	End Method
+		
+	Method HyperJump()
+	
+		Define Timeline As Int[13]
+		Define WX As Int
+		Define WY As Int
+		Define TrueFrame As Int
+		
+		SetSpriteAnimationTimeline( "Ship", False, Timeline )
+		SetSpriteCanCollide("Ship",False)
+	
+		If ship.frame <= 10 Then
+			TrueFrame = ship.frame + 4
+		Else
+			TrueFrame = 24 - ship.frame
+		End If
+		
+		If TrueFrame = 11 Then
+			ShowSprite("Ship")
+			Ship.HyperJumping = Off
+		End If
+		
+		If TrueFrame = 14 Then
+			WX = GetSpriteWidth("Ship")
+			WY = GetSpriteHeight("Ship")
+			HideSprite("Ship")
+			Ship.Movement = StandStill()
+			Ship.Y = Random( WY , ScreenHeight() - 2 * WY )
+			Ship.X = Random( WX , ScreenWidth() - 2 * WX )
+		Else
+			SetSpriteActiveframe( "Ship", TrueFrame )		
+			ScaleSprite( "Ship", ( 0.25 + TrueFrame * 0.01 ) )
+		End If
+		
+		If TickCount() > Ship.LastFrameTime + 85 Then
+	
+			Ship.LastFrameTime = TickCount()
+			ship.frame = ship.frame + 1
+			
+			If Ship.frame > 21 Then
+				Ship.frame = 0
+				SolidifyShip()	
+			End If
+	
+		End If
+		
+	End Method
+	
+	Method DestroyPlayer()
+
+		Ship.IsAlive = False
+		PlaySound( "Explosion1.wav" )
+		ExplodeSprite( Ship.SpriteName )
+		hideSprite( Ship.SpriteName )
+		Ship.DiedAt = TickCount()
+		Lives = Lives - 1
+		DisplayLivesLeft()
+		
+	End Method
+	
+	/********************************
+				Missiles
+	 ********************************/
+		
+	Method LoadMissiles()
+	
+		Define I As Int
+		
+		For I = 1 To MaxMissiles 
+			Missiles[i].SpriteName = "Missile" + I
+			Missiles[i].Visible = False
+			LoadSprite( Missiles[i].SpriteName, "Bullet.gif" )			
+		Next 
+		
+		missileHeight = GetSpriteHeight(Missiles[1].SpriteName) / 2
+	
+	End Method
+	
+	Method FireMissile()
+	
+		Define currentTime As Int = TickCount()
+		If (currentTime - LastMissileFireTime) < PlayerMissileFireDelay Or VisiblePlayerMissiles >= MaxMissiles Then
+			Return
+		End If
+		
+		LastMissileFireTime = currentTime
+	
+		Define MissileIndex As Int = 0
+		Define I As Int
+		For I = 1 To MaxMissiles
+			If Not Missiles[i].Visible Then
+				MissileIndex = I
+			End If
+		Next
+					
+		If MissileIndex = 0 Then
+			Return
+		End If
+		
+		Define X As Int = Ship.X + shipWidth - shipWidth*Cos(piOver180*Ship.Heading )
+		Define Y As Int = Ship.Y + shipHeight - shipWidth*sin(piOver180*Ship.Heading )
+		Define headingInfo As Vector = CalculateVector( Ship.Heading - 180 )
+		
+		Missiles[MissileIndex].X = X - missileHeight
+		Missiles[MissileIndex].Y = Y 
+		Missiles[MissileIndex].DirectionInfo = headingInfo
+		Missiles[MissileIndex].Visible = True
+		Missiles[MissileIndex].TimeFired = TickCount()
+
+		MoveSpriteToPoint( Missiles[MissileIndex].SpriteName, X - missileHeight , Y  )
+		RotateSprite( Missiles[MissileIndex].SpriteName, Ship.Heading )
+		ShowSprite( Missiles[MissileIndex].SpriteName )
+		PlaySound( "railCannonHit.wav" )
+
+	End Method
+	
+	Method HideMissiles()
+	
+		Define I As Int
+		
+		For I = 1 To MaxMissiles 		
+			Missiles[i].Visible = False
+			HideSprite( Missiles[i].SpriteName )
+		Next
+		
+		For I = 1 To MaxLRM
+			LRM[i].Visible = False
+			HideSprite( LRM[i].SpriteName )
+		Next
+	
+	End Method
+	
+	Method AnimateMissile( Missile As MissileSprite )
+		
+		Define DirectionInfo As Vector
+		DirectionInfo = Missile.DirectionInfo
+
+		Missile.X = Missile.X + DirectionInfo.X * AdjustForFrameRate( MissileSpeed )
+		Missile.Y = Missile.Y + DirectionInfo.Y * AdjustForFrameRate( MissileSpeed )
+		
+		MoveSpriteToPoint( Missile.SpriteName, Missile.X, Missile.Y )
+		
+		If TickCount() - Missile.TimeFired > 1000 Then
+			// "Bullet" was alive for more than 5 seconds so kill it
+			Missile.Visible = False
+			HideSprite( Missile.SpriteName )
+			Return
+		End If
+			
+		If Missile.X < 0 Then
+			Missile.X = ScreenWidth()
+		Else
+			If Missile.X > ScreenWidth() Then
+				Missile.X = 0
+			End If
+		End If
+
+		If Missile.Y < 0 Then
+			Missile.Y = ScreenHeight()
+		Else
+			If Missile.Y > ScreenHeight() Then
+				Missile.Y = 0
+			End If
+		End If
+		
+		Define intersections As String[]
+		
+		intersections = GetSpritesThatIntersectWith(Missile.SpriteName)
+		Define I As Int 
+		Define collision As String
+		
+		If ArrayLength( intersections ) > 0 Then
+			
+			For I = 1 To ArrayLength( intersections )
+				collision = intersections[i]
+					// Asteroids are called "Asteroid1", "Asteroid2", "Asteroid3", etc.
+					// Since all Asteroids get destroyed, only look at the first 4 letters of the name
+					// to determine if it is an Asteroid.
+					// make sure we only consider sprites with enough letters to be an asteroid
+					// or the Substring Function will fail!
+				If StringLength(collision) > 8 Then
+					collision = Substring( intersections[i], 1, 4 )
+					If collision = "Aste" Then
+						Missile.Visible = False
+						HideSprite( Missile.SpriteName )
+						DestroyAsteroid(intersections[i])
+					End If
+				End If
+			Next
+			
+		End If
+		
+	End Method 
+	
+	Method AnimateMissiles()
+	
+		Define Count As Int = 0
+		Define I As Int 
+		
+		For I = 1 To ArrayLength( Missiles )
+			If Missiles[ I ].Visible Then
+				AnimateMissile( Missiles[ I ] )
+				Count = Count + 1
+			End If
+		Next
+		
+		VisiblePlayerMissiles = Count
+		
+	End Method
+	
+	Method AnimateLRM( LRMissile As MissileSprite )
+		
+		Define DirectionInfo As Vector
+		Define AdjustedMissileSpeed As Decimal = AdjustForFrameRate( MissileSpeed )
+		DirectionInfo = LRMissile.DirectionInfo
+
+		LRMissile.X = LRMissile.X + DirectionInfo.X * AdjustedMissileSpeed
+		LRMissile.Y = LRMissile.Y + DirectionInfo.Y * AdjustedMissileSpeed
+		
+		MoveSpriteToPoint( LRMissile.SpriteName, LRMissile.X, LRMissile.Y )
+			
+		If LRMissile.X < -40 Then
+			LRMissile.X = ScreenWidth()
+		Else
+			If LRMissile.X > ScreenWidth() Then
+				LRMissile.X = -40
+			End If
+		End If
+
+		If LRMissile.Y < -30 Then
+			LRMissile.Y = ScreenHeight()
+		Else
+			If LRMissile.Y > ScreenHeight() Then
+				LRMissile.Y = -30
+			End If
+		End If
+	
+		Define intersections As String[]
+		
+		intersections = GetSpritesThatIntersectWith(LRMissile.SpriteName)
+		Define I As Int
+		Define J As Int
+		Define collision As String
+		
+		If ArrayLength( intersections ) > 0 Then
+			
+			For I = 1 To ArrayLength( intersections )
+				collision = intersections[i]
+				
+				If StringLength(collision) > 4 Then
+					collision = Substring( intersections[i], 1, 4 )
+					If collision = "Aste" Then
+						LRMissile.Visible = False
+						HideSprite( LRMissile.SpriteName )
+						DestroyAsteroid(intersections[i])
+					Else
+						If collision = "Miss" Then
+							LRMissile.Visible = False
+							HideSprite( LRMissile.SpriteName )
+							PlaySound( "Explosion1.wav" )
+							ExplodeSprite( intersections[i] )
+							For j = 1 To MaxMissiles
+								If Missiles[J].SpriteName = intersections[i] Then
+									Missiles[J].Visible = False
+									HideSprite( Missiles[J].SpriteName )
+								End If
+							Next
+						Else
+							If collision = "Long" Then
+								LRMissile.Visible = False
+								HideSprite( LRMissile.SpriteName )
+								PlaySound( "Explosion1.wav" )
+								ExplodeSprite( intersections[i] )
+								For j = 1 To MaxLRM
+									If LRM[J].SpriteName = intersections[i] Then
+										LRM[J].Visible = False
+										HideSprite( LRM[J].SpriteName )
+									End If
+								Next
+							End If
+						End If
+					End If
+				Else
+				
+					If collision = "Ship" Then
+						If TickCount() - LRMissile.TimeFired > 1000 Then
+							LRMissile.Visible = False
+							HideSprite( LRMissile.SpriteName )
+							DestroyPlayer()
+						End If
+					End If
+				End If
+				
+			Next
+			
+		End If
+		
+	End Method
+	
+	Method LoadLRM()
+	
+		Define I As Int
+		
+		For I = 1 To MaxLRM 
+			LRM[i].SpriteName = "LongRangeMissile" + I
+			LRM[i].Visible = False
+			LoadSprite( LRM[i].SpriteName, "missile1.gif" )
+		Next
+		
+		LRMHeight = GetSpriteHeight(LRM[1].SpriteName) / 2
+		LRMWidth = GetSpriteWidth(LRM[1].SpriteName) / 2
+	
+	End Method
+	
+	Method FireLRM()
+	
+		Define currentTime As Int = TickCount()
+		If (currentTime - LastLRMFireTime) < LRMFireDelay Or LRMsLeft = 0 Then
+			Return
+		End If
+		
+		LastLRMFireTime = currentTime
+	
+		Define X As Int = Ship.X + shipWidth - shipWidth*Cos(piOver180*Ship.Heading )
+		Define Y As Int = Ship.Y + shipHeight - shipWidth*sin(piOver180*Ship.Heading )
+		Define MX As Int = LRMWidth - LRMWidth*Cos(piOver180*Ship.Heading )
+		Define MY As Int = LRMHeight - LRMWidth*sin(piOver180*Ship.Heading )
+	
+		Define headingInfo As Vector = CalculateVector( Ship.Heading )
+		
+		LRM[LRMsLeft].X = X - MX + LRMHeight
+		LRM[LRMsLeft].Y = Y - MY + LRMHeight
+		LRM[LRMsLeft].DirectionInfo = headingInfo
+		LRM[LRMsLeft].Visible = True
+		LRM[LRMsLeft].TimeFired = currentTime
+		
+		RotateSprite( LRM[LRMsLeft].SpriteName, Ship.Heading )
+
+		MoveSpriteToPoint( LRM[LRMsLeft].SpriteName, LRM[LRMsLeft].X , LRM[LRMsLeft].Y )
+	
+		ShowSprite( LRM[LRMsLeft].SpriteName )
+		LRMsLeft = LRMsLeft - 1
+		DisplayLRMsLeft()
+		PlaySound( "rockets.wav" )
+
+	End Method
+	
+	Method AnimateLRMs()
+	
+		Define I As Int
+		
+		For I = 1 To ArrayLength( LRM )
+			If LRM[ I ].Visible Then
+				AnimateLRM( LRM[ I ] )
+			End If
+		Next
+		
+	End Method
+	
+	/********************************
+				Asteroids
+	 ********************************/
+			
+	Method LoadAsteroids()
+
+		Define I As Int
+		Define DirectionInfo As Vector
+		Define ThisScale As Decimal
+		
+		For I = 1 To NumberOfAsteroids
+			Asteroids[i].DirectionInfo = RandomDirection()
+			Asteroids[i].SpriteName = "Asteroid" + I
+			Asteroids[i].Visible = True
+			LoadSprite( Asteroids[i].SpriteName, "ring.png" )
+			Asteroids[i].speed = Random(40,120)
+			ThisScale = Random(10, 30)
+			ThisScale = ThisScale / 10
+			Asteroids[i].scale = ThisScale
+			Asteroids[i].x = Random(25,ScreenWidth() - 25)
+			Asteroids[i].y = Random(25,ScreenHeight() - 25)
+			ScaleSprite( "Asteroid" + I, Asteroids[i].scale )
+			MoveSpriteToPoint( "Asteroid" + I, Asteroids[i].x, Asteroids[i].y )
+			ShowSprite( "Asteroid" + I )
+		Next 
+		
+	End Method
+	
+	Method DestroyAsteroid(SpriteName As String)
+
+		PlaySound( "Explosion1.wav" )
+		ExplodeSprite( SpriteName )
+		
+		Define I As Int
+		Define AddedAsteroid As Int
+		Define DirectionInfo As Vector
+		Define NewScale As Decimal
+		
+		For I = 1 To ArrayLength( Asteroids )
+			
+			If Asteroids[ I ].Spritename = SpriteName Then
+			
+				PlayerScore = PlayerScore + 1
+				If PlayerScore - AdditionalLifeScore = NewLifeAfter Then
+					AdditionalLifeScore = PlayerScore
+					Lives = min( maxlives , Lives + 1)
+					DisplayLivesLeft()
+				End If
+				
+				If PlayerScore > 100000 Then
+					PlayerScore = 0
+				End If
+				
+				UpdateScoreBoard()
+				
+				NewScale = Random( 30 , 70 )
+				NewScale = NewScale / 100
+
+				AddedAsteroid = NewAsteroid( Asteroids[i], NewScale )
+				Asteroids[ I ].Scale = Asteroids[ I ].Scale * NewScale
+				ScaleSprite( Asteroids[i].SpriteName, Asteroids[i].scale )
+					
+				If GetSpriteWidth( Asteroids[i].SpriteName ) > SmallestVisibleAsteroid Then
+					Asteroids[i].DirectionInfo = RandomDirection()
+				Else
+					Asteroids[ I ].Visible = False
+					UnloadSprite( SpriteName )
+				End If
+				
+				If AddedAsteroid <> 100 Then
+					If GetSpriteWidth( Asteroids[AddedAsteroid].SpriteName ) > SmallestVisibleAsteroid Then
+						Asteroids[AddedAsteroid].DirectionInfo = RandomDirection()
+					Else
+						Asteroids[ AddedAsteroid ].Visible = False
+						UnloadSprite( Asteroids[ AddedAsteroid ].SpriteName )
+					End If
+				End If
+				
+			End If
+			
+		Next
+		
+	End Method
+
+	Function NewAsteroid(SameAs As AsteroidSprite, Scale As Decimal) As Int
+		
+		Define I As Int
+		
+		For I = 1 To MaxAsteroids
+			If Asteroids[i].Visible = False Then
+				Asteroids[i].SpriteName = "Asteroid" + I
+				Asteroids[i].X = SameAs.X
+				Asteroids[i].Y = SameAs.Y
+				Asteroids[i].DirectionInfo = SameAs.DirectionInfo
+				Asteroids[i].Scale = SameAs.Scale * ( 1 - Scale )
+				Asteroids[i].Speed = Random(40,120)
+				Asteroids[i].Visible = True
+				LoadSprite( Asteroids[i].SpriteName, "ring.png" )
+				SetSpriteZIndex( "Asteroid" + I, 1000 + I )
+				ScaleSprite( "Asteroid" + I, Asteroids[i].scale )
+				MoveSpriteToPoint( "Asteroid" + I, Asteroids[i].x, Asteroids[i].y )
+				ShowSprite( "Asteroid" + I )
+				Return I
+			End If
+		Next 
+		
+		Return 100
+		
+	End Function
+	
+	Method AnimateAsteroid( Asteroid As AsteroidSprite )
+		
+		Define DirectionInfo As Vector
+		DirectionInfo = Asteroid.DirectionInfo
+		
+		// Asteroid speed is further augmented by value of direction info since (info.x + info.y <> 1)
+		Asteroid.X = Asteroid.X + DirectionInfo.X * AdjustForFrameRate( Asteroid.speed )
+		Asteroid.Y = Asteroid.Y + DirectionInfo.Y * AdjustForFrameRate( Asteroid.speed )
+		
+		Define WX As Decimal = GetSpriteWidth( Asteroid.SpriteName )
+		Define WY As Decimal = GetSpriteHeight( Asteroid.SpriteName )
+		
+		If Asteroid.X < 0 - WX Then
+			Asteroid.X = ScreenWidth()
+		End If
+		
+		If Asteroid.X > ScreenWidth() Then
+			Asteroid.X = 0 - WX
+		End If
+
+		If Asteroid.Y < 0 - WY Then
+			Asteroid.Y = ScreenHeight()
+		End If
+		
+		If Asteroid.Y > ScreenHeight() Then
+			Asteroid.Y = 0 - WY
+		End If
+		
+		MoveSpriteToPoint( Asteroid.SpriteName, Asteroid.X, Asteroid.Y )
+		
+		If SpritesIntersect( Asteroid.SpriteName, ship.SpriteName ) Then
+			DestroyPlayer()
+			DestroyAsteroid(Asteroid.spritename)
+		End If
+				
+	End Method 
+	
+	Method AnimateAsteroids()
+	
+		NumberOfAsteroids = 0
+		
+		Define I As Int 
+		
+		For I = 1 To ArrayLength( Asteroids )
+			If Asteroids[ I ].Visible Then
+				AnimateAsteroid( Asteroids[ I ] )
+				NumberOfAsteroids = NumberOfAsteroids + 1
+			End If
+		Next
+		
+	End Method
+	
+	/********************************
+				Explosions
+	 ********************************/
+	
+	Method LoadExplosions()
+
+		Define I As Int
+		Define spriteName As String
+		
+		For I = 1 To ArrayLength( Explosions )
+			spriteName = "Explosion" + I
+			LoadSprite( spriteName, "Explosion.gif" )
+			SetSpriteCanCollide( spriteName, False)
+			SetSpriteZIndex( spriteName, 5000 + I )
+
+			Explosions[i].SpriteName = spriteName
+			Explosions[i].FrameCount = GetSpriteFrameCount( spriteName )
+			Explosions[i].CurrentFrame = 1
+			Explosions[i].IsActive = False
+		Next	
+		
+	End Method
+	
+	Method ExplodeSprite( SpriteName As String )
+	
+		// Find the exact location of the center of the sprite we want to explode
+		Define X As Int = GetSpriteLeft( SpriteName ) + GetSpriteWidth( SpriteName ) / 2
+		Define Y As Int = GetSpriteTop( SpriteName ) + GetSpriteHeight( SpriteName ) / 2
+
+		Define I As Int
+		Define ExplosionScale As Decimal = 1
+			
+		If SpriteName = "Ship" Then
+			ExplosionScale = 2.5
+		End If
+		
+		For I = 1 To ArrayLength( Explosions )
+		
+			If Not Explosions[i].IsActive Then
+			
+				Explosions[i].IsActive = True
+				Explosions[i].CurrentFrame = 1
+				
+				ScaleSprite( Explosions[i].SpriteName , ExplosionScale)
+				
+				// Offset the x,y coordinates so that the center of the explosion is in the 
+				// center of the ship (or other sprite)
+				X = X - GetSpriteWidth( Explosions[i].SpriteName ) / 2
+				Y = Y - GetSpriteHeight( Explosions[i].SpriteName ) / 2
+				MoveSpriteToPoint( Explosions[i].SpriteName, X, Y )
+				ShowSprite( Explosions[i].SpriteName )
+			
+				Return
+
+			End If
+		
+		Next 
+	
+	End Method
+	
+	Method AnimateExplosions()
+	
+		Define I As Int
+		Define ActiveExplosions As Int = 0
+		
+		For I = 1 To ArrayLength( Explosions )
+		
+			If Explosions[i].IsActive Then
+			
+				ActiveExplosions = ActiveExplosions + 1
+			
+				If Explosions[i].CurrentFrame = Explosions[i].FrameCount Then
+
+					HideSprite( Explosions[i].SpriteName )
+					Explosions[i].IsActive = False
+
+				Else
+				
+					If TickCount() > Explosions[i].LastFrameTime + 50 Then
+
+						Explosions[i].LastFrameTime = TickCount()
+						Explosions[i].CurrentFrame = Explosions[i].CurrentFrame + 1
+						SetSpriteActiveFrame( Explosions[i].SpriteName, Explosions[i].CurrentFrame )
+						
+					End If
+
+				End If
+			
+			End If
+			
+		Next
+		
+		If ActiveExplosions = 0 And NumberOfAsteroids = 0 Then
+			NextLevel()
+		End If
+	
+	End Method
+	
+	/********************************
+				Miscellaneous
+	 ********************************/
+		
+	Method DrawStars()
+	
+		Define I As Int
+		Define Scale As Decimal
+		Define SW As Int = ScreenWidth()
+		Define SH As Int = ScreenHeight()
+		Define NumberOfStars As Int = Random( 200 , 600 )
+		
+		Clear( Black )	
+		LoadSprite( "Star", "Star.gif" )
+		ShowSprite( "Star" )
+		
+		For I = 1 To NumberOfStars	
+			MoveSpriteToPoint( "Star", Random( 1, SW ), Random( 1, SH ) )
+			Scale = Random( 1, 100 )
+			Scale = Scale / 100.0 - 0.1
+			ScaleSprite( "Star", Scale )
+			StampSprite( "Star" )
+		Next
+		
+		UnloadSprite( "Star" )
+
+	End Method
+	
+	Function AdjustForFrameRate( AmountPerSecond As Decimal ) As Decimal
+		Return Min( 20, AmountPerSecond * secondsPerFrame )
+	End Function
+	
+	Function StandStill () As Vector
+		// this is used to stop the ship after a hyperjump or reset/load
+		Define Result As Vector
+		Result.X = 0
+		Result.Y = 0
+		Return Result
+	End Function
+	
+	Function RandomDirection() As Vector
+		///******************************************************************
+		//Calculates random X and Y values that can be added to a sprite's
+		//location in order to move it at angles (not zero) in both directions
+		//*******************************************************************/
+		
+		Define Result As Vector
+			Result.X = RandomDecimal()
+			Result.Y = RandomDecimal()
+		Return Result
+
+	End Function
+	
+	Function RandomDecimal() As Decimal
+		// Pick a random number between ( -0.95 and -0.05 ) or ( 0.5 and 0.95 )
+		
+		Define R As Decimal = 0
+		While Abs( R ) < 5 
+			R = Random( 5 , 195 )
+			R = R - 100
+		End While
+
+		Return R / 100
+	
+	End Function
+	
+	Function CalculateVector( Heading As Decimal ) As Vector
+		///******************************************************************
+		//Calculates the X and Y values that can be added to a sprite's
+		//location in order to move it at the angle defined by the Heading
+		//parameter
+		//*******************************************************************/
+		Define Result As Vector
+	
+		Define theta As Decimal = (Heading * piOver180) * -1
+		Result.X = Cos( theta )
+		Result.Y = Sin( theta ) * -1
+		
+		Return Result
+
+	End Function
+	
+	Method NextLevel()
+		Lives = min( maxlives , Lives + 1 ) // one new life per level
+		DisplayLivesLeft() // update life counter/display
+		PlayerLevel = PlayerLevel + 1
+		HideSprite("Ship") // clear the screen
+		HideMissiles() // clear the screen
+		LRMsLeft = MaxLRM
+		DisplayLRMsLeft()
+		Alert("Get ready for Level : " + PlayerLevel ,Lives + " Lives Left!!!")
+		DrawStars()
+		NumberOfAsteroids = min( ScreenWidth() / 100 , PlayerLevel * 2 ) // more asteroids on the next level
+		SmallestVisibleAsteroid = Max( MinAsteroidSize , SmallestVisibleAsteroid - 2 ) // smaller asteroid fragments on the next level
+		LoadAsteroids()
+		ResetShip()
+	End Method
+	
+	Method HandleKeys()
+						
+		If Ship.IsAlive = True Then
+		
+			If IsKeyDown( "Right" ) Then
+				RotateShip( Ship.RotationSpeed )
+			End If
+			
+			If IsKeyDown( "Left" ) Then
+				RotateShip( Ship.RotationSpeed * -1 )
+			End If
+	
+			If IsKeyDown( "Up" ) Then
+				Ship.Accelerating = True
+			Else 
+				Ship.Accelerating = False
+			End If
+			
+			If Ship.frame = 0 Then
+				If IsKeyDown( "Space" ) Then
+					FireMissile()
+				Else
+					If IsKeyDown( "M" ) Then
+						FireLRM()
+					End If
+				End If
+			End If
+			
+			If IsKeyDown( "Down" ) Then
+				If Ship.HyperJumping = Off Then
+					Ship.frame = 1
+					PlaySound( "shieldGen.wav" )
+					Ship.HyperJumping = On
+				End If
+			End If
+			
+			If IsKeyDown( "P" ) Then
+				GamePaused = True
+			End If
+			
+		End If	
+		
+	End Method
+	
+	Method Instructions()
+		MaximizeConsole( )
+		ShowConsole( )
+		ConsoleWriteLine( "My kids insisted I update the old version of Asteroids to include" )
+		ConsoleWriteLine( "Long Range Missiles, use them with care, they will 'fly' until" )
+		ConsoleWriteLine( "they hit 'SOMETHING'." )
+		ConsoleWriteLine( "" )
+		ConsoleWriteLine( "The keys are:" )
+		ConsoleWriteLine( "Left/Right Arrows = Rotate" )
+		ConsoleWriteLine( "Up Arrow = Accelerate" )
+		ConsoleWriteLine( "Down Arrow = Hyper jump" )
+		ConsoleWriteLine( "Space Bar = Fire Bullet" )
+		ConsoleWriteLine( "M = Fire Long Range Missile" )
+		ConsoleWriteLine( "P = Pause for dinner!!!" )
+		ConsoleWriteLine( "" )
+		ConsoleWriteLine( "You will get an additional life for each 100 points AND a new life on each level." )
+		ConsoleWriteLine( "" )
+		ConsoleWriteLine( "Have Fun" )
+		ConsoleWriteLine( "" )
+		ConsoleWriteLine( "Thanks to Alexander, Christopher, George and Elena for nagging me until I got it right!" )
+		ConsoleWriteLine( "" )
+		ConsoleWriteLine( "Press any key to start game." )
+		ConsoleReadKey(False)
+		HideConsole( )
+	End Method
+	
+	Method Initialize()
+	
+		Maximize()
+		Instructions() // Display instructions and wait
+		// prepair the active elements
+		Clear( Black )
+		ClearSprites()
+		LoadMissiles()
+		LoadLRM()
+		LoadExplosions()
+		LoadShip()
+		LoadLifeCounter()
+		LoadLRMCounter()
+		LoadScoreBoard()	
+		DisplayLivesLeft()
+		Lives = Lives - 1 // NextLevel will add one life so this is to compensate
+		NextLevel()
+			
+	End Method
+	
+	/********************************
+			Main Event Loop
+	 ********************************/
+	
+	Method Main()
+		
+		// Assists in keeping track of the amount of time it takes to draw the last "frame",
+		// which is used to determine how much to move all animated objects during the next frame.
+		Define startTime As Decimal 
+		Define endTime As Decimal
+		Define frameRate As Int
+			
+		Initialize()
+			
+		While Lives > 0
+			startTime = TickCount()
+			
+			If Ship.isalive = False Then
+				If TickCount() - Ship.DiedAt > 1500 Then
+					Ship.isalive = True
+					ResetShip()
+				End If
+			Else
+				MoveShip()
+				If Ship.Frame > 0 Then
+					HyperJump()
+				End If
+			End If
+			
+			HandleKeys()
+			AnimateMissiles()
+			AnimateLRMs()
+			AnimateAsteroids()
+			AnimateExplosions()
+			
+			endTime = TickCount()
+			secondsPerFrame = (endTime - startTime) * 0.001
+			If GamePaused = True Then
+				Alert("Game is paused","press ENTER to continue")
+				GamePaused = False
+			End If
+		End While
+		
+		ClearSprites ()
+		Alert("Total score : " + PlayerScore, "Please play again")
+
+	End Method
+
+End Program

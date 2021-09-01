@@ -1,0 +1,447 @@
+
+// This is a game based on the mastermind board game where you have to guess the hidden code
+// of four colours , select your guess as the first character of each allowable colour i.e
+// r=red, b=black etc. So that your input guess is like this ( rryg ) which is red, red, yellow, green
+// you will then be given two digits that represent how many colours in your guess are correct and in the right position
+// and how many are in the wrong position i.e 1-3 represents 1 correct colour in the right place and the - 3
+// represents 3 colours correct but in the wrong position. A score of 0-0 is no correct colours matching a correct
+// position and no correct colours in a wrong position. You have 14 chances to win! 
+
+Program MasterMind
+
+		Define Choice As Int
+		Define ChoiceStr As String
+		Define colour As Int
+		Define code As Int[4]
+		Define playerscode As Int[4]
+		Define loop_count As Int
+		Define number As Int
+		Define turn As Int
+		Define tries As Int
+		Define guess As String
+		Define xcount As Int
+		Define colour_guess As String[4]
+		Define strlen As Int
+		Define PlayerColour As String
+		Define CodeColour As String
+		Define LengthofString As Int
+		Define RightPlaceFlag As Int
+		Define WrongPlaceFlag As Int
+		Define WrongMatchFlag As Int
+		Define codecount As Int
+		Define playercount As Int
+		Define numreg As Int[4]
+		Define test As Int[4]
+		Define playerstempcolour As Int[4]
+		Define Score As Int
+		
+		
+	Method SetUpPlayersBoard()
+	
+		Color(8)
+		Pen(False)
+		MoveTo(35,6)
+		Pen(True)
+		PenWidth(3)
+		Color(99)
+		Rectangle(106,30,True)
+		Pen(False)
+		
+		Color(8)
+		Rectangle(106,30,False)
+		
+		
+		MoveTo(25,40)
+		Color(8)
+		Pen(True)
+		PenWidth(2)
+		Rectangle(125,480,False)
+	
+	
+	
+	
+	End Method
+	
+	Method SetUpConsole()
+	
+	SetScreenSize(400,600)
+	SetConsoleBackgroundColor(Black)
+	SetConsoleFontColor(Yellow)
+	ConsoleWriteline("Input colour code selection i.e BRYG = (Black,Red,Yellow,Green) ")
+	ConsoleWriteline("Colours are: B=Black, W=White, G=Green, R=Red, Y=Yellow, P=Purple ")
+	
+	
+	
+	End Method
+		
+	Method CalculateColour()
+		
+		Choice = number
+			
+			Select Choice
+			
+				Case 1
+					colour = 114
+				End Case
+				
+				Case 2
+					colour = 8
+				End Case
+				
+				Case 3
+					colour = 52
+				End Case
+				
+				Case 4
+					colour = 139
+				End Case
+				
+				Case 5
+					colour = 137
+				End Case
+				
+				Case 6
+					colour = 113
+				End Case
+				
+				
+			
+			End Select
+			
+	End Method
+	
+	Method CalculateColourFromText()
+	
+	ChoiceStr = PlayerColour
+			
+			Select ChoiceStr
+			
+				Case "R"
+					colour = 114
+				End Case
+				
+				Case "B"
+					colour = 8
+				End Case
+				
+				Case "G"
+					colour = 52
+				End Case
+				
+				Case "Y"
+					colour = 139
+				End Case
+				
+				Case "W"
+					colour = 137
+				End Case
+				
+				Case "P"
+					colour = 113
+				End Case
+				
+				
+			
+			End Select
+	
+	
+	
+	End Method
+	
+	Method GenerateCode()
+	// Generate random 4 colour code
+		For loop_count = 1 To 4
+			number = Random(1,6)
+			CalculateColour()
+			code[loop_count]=colour	
+			test[loop_count]=colour	
+		Next
+		
+	End Method
+	
+	Method DrawCodePins()	
+	
+	// Put 4 colour code onto board
+		Pen(False)
+		
+		MoveTo(50,20)
+		Color(code[1])
+		Circle(15,True)
+		
+		Pen(False)
+		
+		MoveTo(75,20)
+		Color(code[2])
+		Circle(15,True)
+		
+		Pen(False)
+		
+		MoveTo(100,20)
+		Color(code[3])
+		Circle(15,True)
+		
+		Pen(False)
+		
+		MoveTo(125,20)
+		Color(code[4])
+		Circle(15,True)
+		
+		Pen(False)
+		
+	End Method
+	
+	Method DrawPlayerPins()
+	// Place players guess code onto board
+	
+	Pen(False)
+		
+		MoveTo(50,turn)
+		Color(playerscode[1])
+		Circle(15,True)
+		
+		Pen(False)
+		
+		MoveTo(75,turn)
+		Color(playerscode[2])
+		Circle(15,True)
+		
+		Pen(False)
+		
+		MoveTo(100,turn)
+		Color(playerscode[3])
+		Circle(15,True)
+		
+		Pen(False)
+		
+		MoveTo(125,turn)
+		Color(playerscode[4])
+		Circle(15,True)
+		
+		Pen(False)
+		
+		Color(137)
+		SetFont("ariel",16,True,False,False)
+		MoveTo(184,turn - 10)
+		Print( RightPlaceFlag + " - " + WrongPlaceFlag)
+	
+	End Method
+	
+	Method drawplayerscode()	
+		Pen(False)
+		
+		MoveTo(50,turn)
+		Color(playerscode[1])
+		Circle(20,True)
+		
+		Pen(False)
+		
+		MoveTo(75,turn)
+		Color(playerscode[2])
+		Circle(20,True)
+		
+		Pen(False)
+		
+		MoveTo(100,turn)
+		Color(playerscode[3])
+		Circle(20,True)
+		
+		Pen(False)
+		
+		MoveTo(125,turn)
+		Color(playerscode[4])
+		Circle(20,True)
+		
+		Pen(False)
+		
+	End Method
+	
+	Method StringValidation()
+	
+	LengthofString = StringLength(guess)
+	If LengthofString > 4 Then
+	Alert ("Only 4 colours allowed ", "ERROR" )
+
+	
+	End If
+	
+	End Method
+	
+	Method Checkcolourmatch()
+	
+	// new code
+	For xcount = 1 To 4
+		code[xcount]= test[xcount]  // restore original code colours
+	Next
+	
+	// reset flags
+	RightPlaceFlag = 0
+	WrongPlaceFlag = 0
+	
+	
+	
+	//Position number within array to mark a colour in the correct position  
+	
+	For xcount = 1 To 4
+		If playerscode[xcount] = code[xcount] Then
+			RightPlaceFlag = RightPlaceFlag + 1
+			code[xcount] = 50
+			playerscode[xcount]= 55
+			
+			If RightPlaceFlag = 4 Then  // 4 Correct positions equals a win
+				ClearConsole()
+				SetConsoleFontSize(24)
+				SetConsoleFontStyle(True,False,False)
+				
+				ConsoleWrite(" YOU WIN GAME")
+				Pen(False)
+					MoveTo(35,6)
+					Pen(True)
+					PenWidth(3)
+					Color(25)
+					Rectangle(106,30,True)
+					Pen(False)
+					Color(8)
+					Rectangle(106,30,False)
+					// new code
+					For xcount = 1 To 4
+					code[xcount]= test[xcount]
+					Next
+					
+					DrawCodePins()
+					Return
+			End If
+		End If
+	Next
+	
+	// Code to calculate colours that are correct but not in the right position
+	
+	For playercount = 1 To 4 // outer loop
+		For	codecount = 1 To 4		// inner loop	
+			If playerscode[playercount]  = code[codecount] Then // if two colours correct
+				WrongPlaceFlag = WrongPlaceFlag + 1 // add 1 to in the wrong place score
+				code[codecount]= 50 // Mark code position to show its been matched by guess code
+				codecount = 4	// jump out of for next loop
+			End If
+		Next
+	Next
+	
+	
+	
+		
+	End Method
+	
+	Method PrintScore()
+	
+	// Score routine
+	Color(137)
+		SetFont("ariel",16,True,True,False)
+		Pen(False)
+		MoveTo(275,465)
+		Color(8)
+		Rectangle(35,30,True)
+		
+		Color(137)
+		Print( Score )
+		
+	End Method
+	
+	
+	
+	
+	
+	Method Main()
+	
+		ShowConsole()
+		
+		
+		SetUpConsole()
+		
+		
+		Score = 0 // initalise score
+		turn = 20 // set print position on game board.
+		SetConsoleHeight(90)
+		
+		GenerateCode() // Random 4 colour code generated.
+		// Import Background image
+			
+		LoadSprite("Background", "MastermindBackdrop.jpg")
+		MoveSpriteToPoint("Background", 1, 1)
+		ShowSprite("BackGround")
+		StampSprite("BackGround")
+		UnloadSprite("BackGround")
+		SetUpPlayersBoard()
+		
+		// allow player 14 guesses
+		For tries = 1 To 14
+			Score = Score + 1	// add 1 to score each turn.
+			
+			PrintScore()   // Call score routine. 
+			
+			
+			guess = ConsoleReadLine("Please input colour code ",False)
+			guess = ToUpperCase(guess)
+			// string input validation
+			StringValidation()
+			
+				For xcount = 1 To 4 
+					PlayerColour = Substring(guess,xcount,1)// Take one colour letter at a time from input
+					
+					CalculateColourFromText()
+					
+					playerscode[xcount] = colour
+					playerstempcolour[xcount] = colour // Needed to restore colours after (CheckColourmatch) routine.
+				Next
+			
+			//testlogic routine to check players colour to code colours
+			Checkcolourmatch()
+			
+			// drop down the board every turn
+			turn = turn + 30
+			// place refresh players colour here
+			For xcount = 1 To 4
+			playerscode[xcount]=playerstempcolour[xcount]// restore original players guess colours
+			Next
+			
+			DrawPlayerPins()
+			
+			RefreshScreen()
+			
+			
+			
+				If tries = 14  Then // Show Hidden code and display you lose
+					Pen(False)
+					MoveTo(35,6)
+					Pen(True)
+					PenWidth(3)
+					Color(25)
+					Rectangle(106,30,True)
+					Pen(False)
+					Color(8)
+					Rectangle(106,30,False)
+					// new code
+					For xcount = 1 To 4
+					code[xcount]= test[xcount]
+					Next
+					
+					
+					DrawCodePins()
+				End If
+				
+		Next 
+		
+		ClearConsole()
+		SetConsoleFontSize(24)
+		SetConsoleFontStyle(True,False,False)
+		If RightPlaceFlag<>4 Then
+		 	ConsoleWrite(" YOU LOSE! GAME")
+		Else
+		 	ConsoleWrite(" YOU WIN! GAME")
+		End If
+		
+		
+		
+	End Method
+	
+	
+	
+End Program

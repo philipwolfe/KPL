@@ -1,0 +1,74 @@
+Program OrdenamientoSimple
+
+	Method ImprimeArreglo( Descripcion As String, ElArreglo As String[] )
+
+		Define I As Int
+	
+		PrintLine( Descripcion )
+		For I = 1 To ArrayLength( ElArreglo )
+			PrintLine( "    " + i + " = " + ElArreglo[i] )
+		Next
+	
+	End Method
+	
+	Function CopiaArreglo( ElArreglo As String[] ) As String[]
+	
+		Define Resultado As String[ ArrayLength(ElArreglo) ]
+		Define I As Int
+		
+		For I = 1 To ArrayLength(Resultado)
+			Resultado[i] = ElArreglo[i]
+		Next
+		
+		Return Resultado
+
+	End Function 
+
+	Function Ordena( ElArreglo As String[] ) As String[]
+	
+		Define Resultado As String[]
+		
+		Resultado = CopiaArreglo( ElArreglo )
+		
+		Define Longitud As Int = ArrayLength( Resultado )
+		Define Temp As String
+		Define I As Int
+		Define J As Int
+		
+		For I = 1 To Longitud
+		
+			For J = I To Longitud
+			
+				If Resultado[I] > Resultado[J] Then
+					Temp = Resultado[I]
+					Resultado[I] = Resultado[J]
+					Resultado[J] = Temp
+				End If
+			
+			Next
+
+		Next
+		
+		Return Resultado
+	
+	End Function 
+
+	Method Main()
+	
+		// Cambia a las coordenadas de la computadora
+		// en vez de las coordenadas algebráicas
+		SetDeviceCoordinates()
+		SetScreenSize( 300, 550 )
+		
+		Define Lista As String[]
+		Define I As Int
+		
+		Lista = Split( "Manzana,Piña,Naranja,Plátano,Melón,Fresa,Frambuesa,Kiwi,Pera,Ciruela,Durazno,Cereza,Chabacano,Lichi", "," )
+
+		ImprimeArreglo( "Orden Original:", Lista )
+		PrintLine( " " )
+		ImprimeArreglo( "Ordenado:", Ordena( Lista ) )
+	
+	End Method
+
+End Program 

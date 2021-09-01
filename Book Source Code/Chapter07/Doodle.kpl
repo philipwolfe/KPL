@@ -1,0 +1,320 @@
+//Program: Doodle.kpl
+//Created: 01/17/2008
+//Version: 1.0
+//Author: Jerry Lee Ford, Jr.
+//Description: This Phrogram application is a basic paint program that
+//             allows the player to use the mouse to draw pictures using 
+//             an assortment of colors and line sizes.
+
+Program Doodle
+	
+	//Global constant used to store the name of the application
+	Constant GameTitle As String = "Doodle"
+	
+	//Define global variable used to keep track of when drawing operations
+	//should occur
+	Define StartDrawing As Boolean = False
+	
+	//Define pen and circle objects
+	Define ApplicationPen As Pen
+	Define ApplicationCircle As Circle
+	
+	//This class is used as the basis for instantiating objects that need
+	//to set and display messages in popup dialog windows
+	Class MessageManager
+		
+		//Define a variable and restrict its access to inside the class
+		Private Define Message As String
+		
+		//Define a property representing a text string
+		Property Text As String
+		
+			//Allow the property to be retrieved
+            Get
+                Return Message
+            End Get
+			
+			//Allow the property's value to be set
+			Set(Value As String)
+				Message = Value
+			End Set
+		
+		End Property
+		
+		//Add a method that displays the value of the Message variable
+		Method Display()
+		    Alert(Message, "Doodle")
+		End Method
+		
+	End Class	
+	
+	//This method controls overall application execution
+	Method Main ( )
+		
+		//This method sets default pen and color settings
+		SetProgramDefaults()
+		
+		//This method configures window attributes
+		ConfigureWindow()
+		
+		//This method welcomes the player and explains how to display
+		//game instructions
+		DisplayWelcomeMsg()
+		
+		//This loop controls player interaction and drawing operations
+		While True	
+			
+			//This method checks to see if the player wants to change
+			//pen and brush size
+			AdjustPenSize()
+
+			//This method clears the console window
+			ClearTheScreen()
+					
+			//This method displays the game's instructions
+			DisplayInstructions()
+			
+			//This method checks to see if the player wants to change color
+			ApplyColorSetting()
+					
+			//This method tracks mouse movement and manages drawing
+			CollectInputAndDraw()
+			
+			//This method updates the display of the player's drawing on 
+			//the console window
+			RefreshScreenOutput()
+					
+		End While
+		
+	End Method
+			
+	//This method sets default pen and color settings
+	Method SetProgramDefaults()
+		
+		//Set the line width for the Pen
+		ApplicationPen.LineWidth = 6
+
+		//Set the circle's line width, filled status and radius
+		ApplicationCircle.LineWidth = 6
+		ApplicationCircle.Filled = True
+		ApplicationCircle.Radius = 3
+				
+		//Set the application's default color to blue
+		ApplicationPen.Color = Blue
+		ApplicationCircle.Color = Blue
+		
+		//Display the name of the current color on the window's status bar
+		Status("Color = Blue")
+		
+	End Method
+	
+	//This method configures Window attributes
+	Method ConfigureWindow()
+			
+		HideToolbar()   //Prevent the window's toolbar from being displayed
+		SetScreenSize(640, 480)    //Set the screen size to 640x480 pixels
+		SetWindowTitle(GameTitle)  //Display the name of the game in the
+                                   //Window's titlebar
+		
+	End Method
+	
+	//This method displays the game's welcome message and explains how to
+	//display instructions
+	Method DisplayWelcomeMsg()
+			
+		//Create an object based on the MessageManager class
+		Define Msg As MessageManager
+				
+		//Use the MessageManager class's Text property to store the game's
+		//welcome message
+		Msg.Text = "Welcome to " + GameTitle + "!  Press F10 to instructions."
+		
+		//Use the MessageManager class's Display() method to display a 
+		//welcome message
+		Msg.Display()
+		
+	End Method
+	
+	//This method is responsible for changing pen and brush size
+	Method AdjustPenSize()
+		
+		//Change pen and circle settings when the F1 key is pressed
+		If IsKeyDown("F1") Then
+			ApplicationPen.LineWidth = 6
+			ApplicationCircle.Radius = 3
+		End If
+		
+		//Change pen and circle settings when the F2 key is pressed
+		If IsKeyDown("F2") Then
+			ApplicationPen.LineWidth = 8
+			ApplicationCircle.Radius = 4
+		End If
+						
+		//Change pen and circle settings when the F3 key is pressed
+		If IsKeyDown("F3") Then
+			ApplicationPen.LineWidth = 12
+			ApplicationCircle.Radius = 6
+		End If
+		
+	End Method
+	
+	//This method is responsible for clearing the console window (e.g. the
+	//drawing area)
+	Method ClearTheScreen()
+		
+		//Set the console window's background color to white, effectively
+		//clearing the window when the F4 key is pressed
+		If IsKeyDown("F4") Then		
+			ClearBackground(White)
+		End If	
+		
+	End Method
+	
+	//This method is responsible for displaying the game's instructions
+	Method DisplayInstructions()
+		
+		//Display game instructions when the F10 key is pressed
+		If IsKeyDown("F10") Then
+			
+			//Define a method variable to hold the display string
+			Define Msg As String
+			
+			//Create an object based on the MessageManager class
+			Define MsgOutput As MessageManager
+			
+			//Format the message string containing the game's instructions
+			Msg = "To draw press and hold down a mouse button.  "
+			Msg = Msg + "Release the mouse button to stop drawing.  "
+			Msg = Msg + "You may press any of the following keys to modify "
+			Msg = Msg + "the game's settings:  "
+			Msg = Msg + "F1 - Brush size 6, "	
+			Msg = Msg + "F2 - Brush size 9, "	
+			Msg = Msg + "F3 - Brush size 12, "
+			Msg = Msg + "F4 - Clear Screen, "
+			Msg = Msg + "F10 - Help, "
+			Msg = Msg + "B - Blue, "
+			Msg = Msg + "G - Green, "
+			Msg = Msg + "O - Orange, "
+			Msg = Msg + "P - Purple, "
+			Msg = Msg + "R - Red, "
+			Msg = Msg + "W - White, "
+			Msg = Msg + "Y - Yellow."
+			
+			//Use the MessageManager class's Text property to store the game's
+			//instruction
+			MsgOutput.Text = Msg
+					
+			//Use the MessageManager class's Display() method to display a 
+			//welcome message
+			MsgOutput.Display()
+			
+		End If	
+		
+	End Method
+	
+	//This method is responsible for changing the color used when drawing
+	Method ApplyColorSetting()
+		
+		//Set the color to red when the R key is pressed
+		If IsKeyDown("R") Then
+			ApplicationPen.Color = Red
+			ApplicationCircle.Color = Red
+			Status("Color = Red") //Display text in the status bar  
+		End If
+		
+		//Set the color to yellow when the Y key is pressed
+		If IsKeyDown("Y") Then
+			ApplicationPen.Color = Yellow
+			ApplicationCircle.Color = Yellow
+			Status("Color = Yellow") //Display text in the status bar  
+		End If			
+			
+		//Set the color to purple when the P key is pressed
+		If IsKeyDown("P") Then
+			ApplicationPen.Color = Purple
+			ApplicationCircle.Color = Purple
+			Status("Color = Purple") //Display text in the status bar  
+		End If				
+			
+		//Set the color to green when the G key is pressed
+		If IsKeyDown("G") Then
+			ApplicationPen.Color = Green
+			ApplicationCircle.Color = Green
+			Status("Color = Green") //Display text in the status bar  
+		End If
+		
+		//Set the color to blue when the B key is pressed
+		If IsKeyDown("B") Then
+			ApplicationPen.Color = Blue
+			ApplicationCircle.Color = Blue
+			Status("Color = Blue") //Display text in the status bar  
+		End If	
+			
+		//Set the color to white when the W key is pressed
+		If IsKeyDown("W") Then
+			ApplicationPen.Color = White
+			ApplicationCircle.Color = White
+			Status("Color = White") //Display text in the status bar  
+		End If	
+			
+		//Set the color to orange when the O key is pressed
+		If IsKeyDown("O") Then
+			ApplicationPen.Color = Orange
+			ApplicationCircle.Color = Orange
+			Status("Color = Orange") //Display text in the status bar  
+		End If	
+		
+	End Method
+	
+	//This method tracks mouse movement and handle drawing operations
+	Method CollectInputAndDraw()
+		
+		//Prepare the game for drawing whenever a mouse button is pressed
+		If MouseEvent = "ButtonDown" Then
+						
+			//Set variable value to indicate that it is time to draw		
+			StartDrawing = True
+				
+			//Set the location where the current drawing operation 
+			//should begin
+			ApplicationPen.MoveTo(MouseX, MouseY)
+				
+		End If
+		
+		//Drawing should stop when the player lets go of the mouse button
+		If MouseEvent = "ButtonUp" Then
+			
+			//Set variable value to indicate that it is time to stop drawing
+			StartDrawing = False
+				
+		End If
+		
+		//Begin drawing as the player moves the mouse
+		If StartDrawing = True And MouseEvent = "Move" Then
+
+			//Draw line beginning as the pointer's starting position and
+			//ending at the current pointer location
+			ApplicationPen.DrawTo(MouseX, MouseY)
+				
+			//Draw a circle at the end of each line in order to give it a 
+			//rounded edge
+			ApplicationCircle.Center.X = MouseX
+			ApplicationCircle.Center.Y = MouseY
+			ApplicationCircle.Draw()
+				
+			//Pause 2/1000 of a second to allow for smoother drawing effect 
+			Delay(2)
+				
+		End If
+		
+	End Method
+	
+	//This method updates the display of the player's drawing
+	Method RefreshScreenOutput()
+		
+		//Redraw the screen in order to show the player's artwork
+		RefreshScreen()
+		
+	End Method
+	
+End Program

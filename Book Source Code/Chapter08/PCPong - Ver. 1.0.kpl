@@ -1,0 +1,316 @@
+//Program: PCPong.kpl
+//Created: 01/22/2008
+//Version: 1.0
+//Author: Jerry Lee Ford, Jr.
+//Description: This Phrogram game is based on the original Pong
+//             computer game that pits two players against one
+//             another in a ping-pong style video game.
+
+Program PCPong
+	
+	//Global constant used to store the name of the application
+	Constant GameTitle As String = "PCPong"
+	
+	//Global variables used throughout the game
+	Define PongBall As String = "BlueBall.png"      //Ball
+	Define PlayerPaddle As String = "PongPaddle.gif"    //Paddle
+	
+	//Define variables that control the speed and direction of the ball
+	Define MoveX As Integer 
+	Define MoveY As Integer 
+	
+	//Define global variables in which to store player scores
+	Define Player1Score As Integer 
+	Define Player2Score As Integer 
+	
+	//Specify the number of points required to win the game
+	Define WinningScore As Integer = 21
+	
+	//Define a variable that will be used to control the game's primary loop	
+	Define GameOver As Boolean = False 
+		
+	//Definition of sprites objects used to play the game
+	Define Player1Paddle As Sprite   //Player 1's paddle
+	Define Player2Paddle As Sprite   //Player 2's paddle
+	Define GameBall As Sprite		 //The game ball
+	
+	//This method is responsible for the overall execution of the game	
+	Method Main()
+	
+		//Define a variable to be used to keep track of how long a point has lasted
+		Define Duration As Integer
+		
+		//Define a variable to 
+		Define LastCheck As Integer
+		
+		//Define a Timer object to be used to control the pace of the game
+		Define GameTimer As Timer
+		
+		//Display the game's welcome message and explain how to view instructions
+		Alert("Welcome to " + GameTitle + "!", GameTitle)
+		
+		ConfigureWindow() //This method sets the console window's default settings
+				
+		GameTimer.Start() //Turn on the game's Timer object
+		
+		StartANewPoint()  //Call method in order to start the game's first point
+		
+		While GameOver = False  //This loop controls overall game play
+			
+			//Keep track of how long the game has been running
+			Duration = TickCount()	
+			
+			//Ensure 30/1000 of a second has passed before doing anything
+			If Duration - LastCheck > 30 Then
+			
+				ProcessPlayerMoves()  //Call on the method that processes player moves
+				
+				UpdateBallPosition()  //Call on the method that moves the ball 
+				
+				ProcessPlayerMisses() //Call on the method that handles player misses
+								
+				//Perform the following methods as long as neither player has earned 21 points
+				If GameOver = False Then
+					
+					//Call on the method that handles collisions with the top and bottom of
+					//the screen
+					ManageVerticalCollisions()
+					
+					//Call on the method that handles collisions with player paddles
+					ProcessPlayerHits()
+					
+				End If
+				
+				LastCheck = Duration    //Reset the timer in order to start a new
+										//30 second count
+				
+			End If
+				
+		End While	
+			
+		//The game is over. It is time to display the final result.
+		DisplayResults()
+			
+	End Method
+	
+	//This method configures Window attributes
+	Method ConfigureWindow()
+
+		SetScreenSize(640, 480)    //Set the screen size to 640x480 pixels
+		SetWindowTitle(GameTitle)  //Display the name of the game in the
+                                   //Window's titlebar
+		Color(White)    //Set the console window's background color to white
+
+	End Method
+			
+	//This method initiates the start of a new point
+	Method StartANewPoint()
+		
+		//Define a variable to be used when displaying the score	
+		Define Msg As String
+		
+		//Format the output text
+		Msg = "Player 1:  " + Player1Score + " points            "
+		Msg = Msg + "       Player 2: " + Player2Score + " points" 
+		
+		//Displays the score
+		Alert(Msg, GameTitle)
+		
+		//Load graphics representing the sprites for player paddles and the ball
+		Player1Paddle.Load(PlayerPaddle) 
+		Player2Paddle.Load(PlayerPaddle)
+		GameBall.Load(PongBall)
+		
+		//Set the starting point on the X-axis for both players' paddles
+		Player1Paddle.X = 20
+		Player2Paddle.X = 610
+			
+		//Set the starting point on the Y-axis for both players' paddles
+		Player1Paddle.Y = ScreenHeight() / 2 - 50
+		Player2Paddle.Y = ScreenHeight() / 2 - 50
+			
+		//Start the GameBall off in the middle of the screen
+		GameBall.X = ScreenWidth() / 2 - 10
+		GameBall.Y = ScreenHeight() / 2 - 10
+		
+		//Display player's paddles and the ball
+		Player1Paddle.Show()
+		Player2Paddle.Show()
+		GameBall.Show()
+	
+		//Pause for one second to give both players time to get ready 
+		Delay(1000) 
+		
+		//Begin game play by moving the ball between 4 - 6 pixels on the X-axis
+		MoveX = Random(5, 7)
+		
+		//Move the ball between 2 to 5 pixels on the Y-axis
+		moveY = Random(2, 5)
+		
+	End Method
+	
+	//This method controls the movement of the game paddles
+	Method ProcessPlayerMoves()
+
+		//Move Player 1's paddle up when the Shift key is pressed
+		If IsKeyDown("Shift") Then
+			//Do not let the paddle go off the top of the console window
+			If Player1Paddle.Y > 1 Then
+				//Prepare to move the paddle up by 8 pixels on the Y-axis
+				Player1Paddle.Y -= 8  //The higher the number the faster the paddle moves
+			End If
+		End If
+		
+		//Move Player 1's paddle down when the Control key is pressed
+		If IsKeyDown("Control") Then
+			//Do not let the paddle go off the bottom of the console window
+			If Player1Paddle.Y < (ScreenHeight() - Player1Paddle.Height) Then
+				//Prepare to move the paddle down by 8 pixels on the Y-axis
+				Player1Paddle.Y += 8  //The higher the number the faster the paddle moves
+			End If
+		End If
+					
+		//Move Player 2's paddle up when the Up key is pressed
+		If IsKeyDown("Up") Then
+			//Do not let the paddle go off the top of the console window
+			If Player2Paddle.Y > 1 Then
+				//Prepare to move the paddle up by 8 pixels on the Y-axis
+				Player2Paddle.Y -= 8  //The higher the number the faster the paddle moves
+			End If
+		End If
+
+		//Move Player 2's paddle down when the Down key is pressed
+		If IsKeyDown("Down") Then
+			If Player2Paddle.Y < (ScreenHeight() - Player2Paddle.Height) Then	
+				//Prepare to move the paddle down by 8 pixels along the Y-axis
+				Player2Paddle.Y += 8    //The higher the number the faster the paddle moves
+			End If
+		End If
+		
+		//Move player paddles as instructed by the player to their new coordinates
+		Player1Paddle.MoveTo(Player1Paddle.X, Player1Paddle.Y) 
+		Player2Paddle.MoveTo(Player2Paddle.X, Player2Paddle.Y) 
+				
+	End Method
+
+	//This method is responsible for moving the ball around the console window
+	Method UpdateBallPosition()
+		
+		GameBall.X += MoveX  //Adjust the ball's location on the X-axis
+		GameBall.Y += MoveY  //Adjust the ball's location on the X-axis
+		
+		GameBall.Show()      //Display the ball at its new location
+	
+	End Method
+	
+	//This method determines when points are scored
+	Method ProcessPlayerMisses()
+			
+		//Player 2 loses the point if the ball reaches the right edge of
+		//the window
+		If GameBall.X > ScreenWidth() - 20 Then
+			
+			Player1Score += 1  //Increment Player 1's score by one point
+			
+			//Check to see if Player 1 has won the game
+			If Player1score = WinningScore Then 
+				GameOver = True
+			End If			
+					
+			GameBall.Unload()    //Unload the game ball
+						
+			If GameOver = False Then  //If the game is not over, start a new point
+				StartANewPoint()
+			End If
+			
+		Else
+			//Player 1 loses the point if the ball reaches the left edge of
+			//the window
+			If GameBall.X < 0 Then
+				
+				Player2Score += 1  //Increment Player 2's score by one point
+				
+				//Check to see if Player 1 has won the game
+				If Player2Score = WinningScore Then 
+					GameOver = True
+				End If
+		
+				GameBall.Unload()  //Unload the game ball
+								
+				If GameOver = False Then  //If the game is not over, start a new point
+					StartANewPoint()
+				End If
+				
+			End If
+		End If
+	
+	End Method
+	
+	//This method deflects the ball when it hits the top or bottom on the window
+	Method ManageVerticalCollisions()	
+		
+		//Detect the ball when it collides with the bottom of the screen 
+		If GameBall.Y > (ScreenHeight() - 20) Then 
+			MoveY = MoveY * -1     //Reverse the ball's direction on the Y-axis
+		Else  //Detect the ball when it collides with the top of the screen 
+			If GameBall.Y < 10 Then 
+				MoveY = MoveY * -1  //Reverse the ball's direction on the Y-axis
+			End If
+		End If	
+			
+	End Method	
+	
+	//This method deflects the ball whenever it collides with a paddle
+	Method ProcessPlayerHits()
+		
+		//Look for a collection between the ball and one of the paddles
+		If GameBall.Intersects(Player1Paddle) Or GameBall.Intersects(Player2Paddle) Then
+				
+			//Let's speed things up a bit every time the ball hits a paddle			
+			If MoveX > 0 Then	
+				MoveX += 1   //Speed up the movement of the ball on the X-axis
+			End If
+
+			MoveX *= -1  //Reverse the direction of the ball on the X-axis
+				
+			//Manage collision with Player 1's paddle
+			If GameBall.Intersects(Player1Paddle) Then
+					MoveY -= Random(0, 2) 
+			End If
+				
+			//Manage collision with Player 2's paddle
+			If GameBall.Intersects(Player2Paddle) Then
+					MoveY -= Random(0, 2) 
+			End If
+				
+			GameBall.X += MoveX  //Adjust the ball's location on the X-axis
+			GameBall.Y += MoveY  //Adjust the ball's location on the Y-axis
+				
+			//Move the ball to the specified set of coordinates
+			GameBall.MoveTo(GameBall.X, GameBall.Y)
+			
+		End If
+								
+	End Method
+	
+	//This method does a little clean up and notifies the player when the end
+	//of the game is reached
+	Method DisplayResults()
+		
+		//Define a variable to be used when displaying the score
+		Define Msg As String
+		
+		//Format the output text
+		Msg = "Player 1:  " + Player1Score + " points            "
+		Msg = Msg + "       Player 2: " + Player2Score + " points" 
+		
+		//Displays the score
+		Alert(Msg, GameTitle + "  -  G A M E  O V E R!")
+		
+		//The game has ended so remove both paddles from the screen
+		Player1Paddle.Hide()
+		Player2paddle.Hide()
+
+	End Method
+
+End Program

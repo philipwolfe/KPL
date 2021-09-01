@@ -1,0 +1,228 @@
+Program PresionaBotones
+// BOTONEs KPL
+// L.F.Serflaten
+//
+// Este programa muestra un método para añadir varios botones que pueden presionarse.
+// Se puede utilizar para agregar este código aun programa que utilice botones para
+// interactuar con el usuario.
+// 
+// Una ESTRUCTURA se utiliza para agrupar las propiedades de los botones.
+
+	Structure BotonPresionable
+		Presionado As Bool
+		Texto As String
+		Izquierda As Int
+		Arriba As Int
+		Ancho As Int
+		Altura As Int
+	End Structure
+	
+// Declaramos variables que contendrán el arreglo de botones e indicar cuál
+// es el botón activo en cada momento.  Se necesita conocer cuál es el botón activo
+// para asegurar que el  botón que presiona el usuario es el mismo sobre el que está
+// colocado al liberar el botón de su ratón.  Si no corresponde, el evento de clic
+// no se activa.
+
+	Define PresionaBotones As BotonPresionable[3]
+	Define BotonActivo As Int
+	
+// Los siguientes tres métodos son los que utilizaremos (modificaremos) para integrar
+// estos botones a otro programa.  Todos los métodos que aparecen después de estos tres
+// son los que se encargan de manejar los botones.
+
+Method Main()
+
+	SetDeviceCoordinates()
+	SetScreenSize(140, 150)
+	// Para capturar los eventos del ratón, llamamos al siguiente método
+	SetMouseEvent( "Mouse" )
+	// Inicializamos los botones para utilizarlos.
+	CrearBotones()
+
+	// Este ciclo mantiene el programa en ejecución para que pueda responder
+	// a los eventos del ratón.  El programa principal agregará su código aquí
+	// para cumplir con las funciones para las cuales fue programado....
+    While True
+		RefreshScreen()
+	End While
+	
+End Method
+	
+	
+	
+Method Mouse( NombreEvento As String, X As Int, Y As Int, Boton As Int )
+// La primera prueba es para los botones, si el usuario no está 
+// sobre el Botón, entonces el programador deseará hacer otras pruebas.
+	If EventosDelBoton(NombreEvento, X, Y ) Then
+		// Si el Botón fue presionado, entonces el evento Click ya ha sido
+		// activado en este momento, así que nada más quedará por hacer.
+		Return
+	End If
+	// Otras pruebas, o cualquier otra cosa que el programador desee hacer 
+	// con el evento del mouse puede agregarse aquí.  Esta sección solo se
+	// ejecutará si el mouse no está sobre alguno de los botones.
+	Status("")
+End Method
+
+
+
+Method ButtonClick(Indice As Int)
+// Aquí es donde el programa principal responderá al clic de los botones
+// El valor de índice nos indica cuál fue el botón que se presionó.
+	Status("El Botón #" + Indice + " fue presionado.")
+End Method
+	
+
+	
+Method CrearBotones()
+// Esta sección crea los botones desde un solo lugar para así mantenerlos
+// agrupados para hacer ajustes más facilmente (cuando se necesite) El código
+// puede añadirse al método Main,o agruparse en métodos diferentes para crear
+// los botones, como se hizo aquí.  Los espacios dentro del Caption del botón
+// nos sirve para centrar el texto dentro del botón. (Ver DibujaBoton)
+    ColocaBoton(PresionaBotones[1], 30, 20, 80, 30, "Primero")
+    ColocaBoton(PresionaBotones[2], 30, 60, 80, 30, "Segundo")
+    ColocaBoton(PresionaBotones[3], 30, 100, 80, 30, " Último")
+	DibujaBoton(PresionaBotones[1])
+	DibujaBoton(PresionaBotones[2])
+	DibujaBoton(PresionaBotones[3])
+End Method
+
+
+// El resto de este programa manipula la creación y dibujo de los botones.
+// Estos métodos pueden añadirse a programas más largos que utilicen botones,
+// pero el programador puede quitarlos de en medio, (¿con un Include?) sin necesidad
+// de modificarlos, ¡siempre que no planee modificar la apariencia de los botones!
+	
+Method ColocaBoton( Boton As BotonPresionable, Izquierda As Int, Arriba As Int, Ancho As Int, Altura As Int, Texto As String)
+// Esto hace más fácil crear los botones al colocar todos los parámetros
+// dentro de una llamada (llamadas de una línea para crear cada botón) 
+	Boton.Izquierda = Izquierda
+	Boton.Arriba = Arriba
+	Boton.Ancho = Ancho
+	Boton.Altura = Altura
+	Boton.Texto = Texto
+	Boton.Presionado = False
+End Method
+
+
+	
+Function EventosDelBoton(Evento As String, X As Int, Y As Int) As Bool
+// Esta función verifica si el usuario se encuentra sobre el botón, y puede estar
+// presionando un botón del mouse. Es básicamente el manejador de eventos del mouse
+// colocado en otro lugar para dejarlo más cercano y así poder utilizarlo
+// en el programa principal.
+
+	Define Indice As Int
+	
+	// ¿Está el usuario sobre el botón?
+	Indice = VerificaBotones(X, Y)
+	
+	If Evento = "ButtonDown" Then
+		If Indice > 0 Then
+			// Cuando el usuario está sobre un botón y dando clic con el mouse...
+			PresionaBotones[Indice].Presionado = True
+			DibujaBoton( PresionaBotones[Indice] )
+			BotonActivo = Indice
+		End If
+	Else
+		// Cuando el usuario libera el clic del mouse, cualquier botón activo
+		// puede levantarse.  Si el índice del botón presionado corresponde con el 
+		// del botón donde el usuario libera el clic del mouse, en ese momento ocurre
+		// un evento ABAJO-ARRIBA en el mismo botón, provocando que el evento CLICK
+		// se active.
+		If Evento = "ButtonUp" Then
+			If BotonActivo > 0 Then
+				// Se levanta cualquier botón activo
+				PresionaBotones[BotonActivo].Presionado = False
+				DibujaBoton( PresionaBotones[BotonActivo])
+				// Si corresponden, llamamos al evento Click
+				If Indice = BotonActivo Then
+					ButtonClick( BotonActivo )
+				End If
+			End If
+			// Cuando el usuario libera el clic del mouse y ningún botón está activo.
+			BotonActivo  = 0
+		End If
+	End If
+	
+	// Reportamos si el usuario está sobre un botón o no.
+	Return (Indice > 0)
+End Function
+
+
+
+Function VerificaBotones( X As Int, Y As Int) As Int
+// Esta función verifica si el mouse se encuentra actualmente sobre
+// alguno de los botones del arreglo que llamamos BotonPresionable.
+
+	Define idc As Int
+	Define btn As BotonPresionable
+	
+	For idc = 1 To ArrayLength(PresionaBotones)
+		btn = PresionaBotones[idc]
+		If (X > btn.Izquierda) And (X < (btn.Izquierda + btn.Ancho)) Then
+			If (Y > btn.Arriba) And (Y < (btn.Arriba + btn.Altura)) Then
+				Return idc
+			End If
+		End If
+	Next
+	// Si llegamos hasta este punto, significa que el mouse no está sobre un botón.
+	Return 0
+End Function
+
+
+
+Method DibujaBoton( Boton As BotonPresionable)
+// Este método determina la apariencia de los botones.  Desafortunadamente, el texto
+// debe centrarse manualmente añadiendo espacios al principio del texto.
+// Como consecuencia, no intentamos alternar el texto del botón que se ha presionado
+// (Como ocurre normalmente con los botones de Windows). Puede existir una mejor 
+// forma de centrarlos más adelante, y ajustar 1 pixel será más fácil entonces...
+
+	Pen(False)
+	PenWidth(1) 
+	// Dibujamos el color principal
+	MoveTo(Boton.Izquierda, Boton.Arriba)
+	Color(silver)
+	Rectangle(Boton.Ancho, Boton.Altura, True)
+	
+	// Dibuja el relieve para el estado de 'Presionado' y 'No Presionado'.
+	If Boton.Presionado Then
+		Color(Gray)
+		MoveTo(Boton.Izquierda + 1 , Boton.Arriba + 1)
+		Rectangle(Boton.Ancho - 1, Boton.Altura - 1, False)
+	Else
+		Color(White)
+		MoveTo(Boton.Izquierda + 1 , Boton.Arriba + 1)
+		Rectangle(Boton.Ancho - 1, Boton.Altura - 1, False)
+		Color(gray)
+		MoveTo(Boton.Izquierda , Boton.Arriba)
+		Rectangle(Boton.Ancho - 2, Boton.Altura - 2, False)
+	End If	
+	
+	// Dibuja el borde y el texto
+	PenWidth(2) 
+	Color(Black)
+	MoveTo(Boton.Izquierda, Boton.Arriba)
+	Rectangle(Boton.Ancho, Boton.Altura, False)
+	
+	// Como no tenemos manera de medir la longitud de un texto
+	// los Captions deben definirse de forma que el texto más largo se vea bien
+	// añadiendo espacios al inicio de los Captions más cortos para centrarlos
+	// dentro del botón.
+	If Boton.Presionado Then
+		// Desplazamos 1 pixel a la derecha y abajo para dar apariencia de Presionado.
+		MoveTo(Boton.Izquierda + 10, Boton.Arriba + 6)
+	Else
+		// La posición normal
+		MoveTo(Boton.Izquierda + 9, Boton.Arriba + 5)
+	End If
+	
+	SetFont("Tahoma", 11, True, False,False)
+	Print(Boton.Texto)
+	
+End Method
+
+	
+End Program

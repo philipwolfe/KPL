@@ -1,0 +1,51 @@
+Program PelotaRebotando
+
+	Function AjustaDeltaDeRebotes( Valor As Int, Delta As Int, ValorMinimo As Int, ValorMaximo As Int ) As Int
+	
+		If Valor + Delta <= ValorMinimo Or Valor + Delta >= ValorMaximo Then
+			Return (Delta * -1)
+		Else
+			Return Delta 
+		End If
+		
+	End Function
+	
+	Method MAIN()
+	
+		// Cambia a las coordenadas de la computadora 
+		// en vez de las coordenadas algebraicas
+		SetDeviceCoordinates()
+		
+		Define X As Int = 15
+		Define DeltaX As Int = 1
+		
+		Define Y As Int = 10
+		Define DeltaY As Int = 1
+	
+		// Carga la imagen de la pelota y la coloca en su posición inicial
+		LoadSprite( "Pelota", "BlueBall.png" )
+		MoveSpriteToPoint( "Pelota", x, y )
+		ShowSprite( "Pelota" )
+		ScaleSprite( "Pelota", 2 )
+		SetSpriteOpacity( "Pelota", 5 )
+
+		Define AnchoImagen As Int = GetSpriteWidth( "Pelota" )
+		Define AlturaImagen As Int = GetSpriteHeight( "Pelota" )
+		
+		While True
+		
+			DeltaX = AjustaDeltaDeRebotes( X, DeltaX, 1, ScreenWidth() - AnchoImagen )
+			DeltaY = AjustaDeltaDeRebotes( Y, DeltaY, 1, ScreenHeight() - AlturaImagen )
+			
+			X = X + DeltaX
+			Y = Y + DeltaY
+			
+			MoveSpriteByAmount( "Pelota", DeltaX, DeltaY )
+			StampSprite( "Pelota" )
+			RotateSpriteBy( "Pelota", 1.1 )
+			
+		End While
+	
+	End Method
+
+End Program

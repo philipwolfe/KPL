@@ -1,0 +1,163 @@
+//Program: StoryTime.kpl
+//Created: 11/24/2007
+//Version: 1.0
+//Author: Jerry Lee Ford, Jr.
+//Description: This Phrogram game generates a mad-lib-styled story using 
+//             input provided by the player.
+
+Program StoryTime
+
+	Method Main()
+
+		//Define the variables used throughout the program to store data
+		Define Dessert As String 
+		Define Animal As String 
+		Define Teacher As String 
+		Define Toy As String 
+		Define Reply As Boolean
+		Define Intro1 As String
+		Define Intro2 As String				
+		
+        HideToolbar()   //Prevent the window's toolbar from being displayed
+ 		SetScreenSize (800, 600)    //Set the screen size to 800x600 pixels
+        SetWindowTitle ("Story Time")        //Display the name of the game 
+		                                     //in the Window's titlebar
+        
+		SetConsoleBackgroundColor(LightGray)         //Set background color
+        SetConsoleFontColor(DarkBlue)                //Set font color
+		
+        // Set console font style to Bold, non-italic and non-underline
+        SetConsoleFontStyle(True, False, False)
+        SetConsoleFont("Arial", 18)          // Set font to Arial, point 18
+		
+		ShowConsole()    //Display the console
+		
+		//Outline the text of the game's welcome message
+		Intro1 = "Welcome to the Story Time game."
+		Intro2 = "Would you like to play?"
+		
+		//Display the game's welcome message in a popup dialog window and
+		//prompt the player to click on Yes to play the game or No to quit
+		Reply = Confirm(Intro1 + " " + Intro2, "Story Time")
+
+		//Analyze the player's response
+		If Reply = True Then            //If Reply equals true then the
+						                //player clicked on the Yes button
+			
+			//Prompt the player to answer four questions and store each
+			//answer in a separate variable
+			Dessert = Console.ReadString("What is your favorite junk food?") 
+			Animal = Console.ReadString("Type the name of a funny animal.") 
+			Teacher = Console.ReadString("Who was your 3rd grade teacher?") 
+			Toy = Console.ReadString("Type the name of your favorite toy.") 
+
+			ClearConsole()   //Clear the console
+		
+			//Set text alignment to center
+			SetConsoleTextAlignment("Center") 
+			
+			ConsoleWriteLine("")  //Write a blank line on the console
+			
+			//Let the player know the that it is ready to tell the story
+			ConsoleWriteLine("Okay, those were great answers.")
+			ConsoleWriteLine("")
+			ConsoleWriteLine("Now press any key to begin the story!")
+			
+			Console.ReadKey()    //Wait for the player to press a key
+			
+			ClearConsole()       //Clear the console
+			
+			SetConsoleTextAlignment ("Left")   //Set text alignment to left
+
+			ConsoleWriteLine("")  //Write a blank line on the console
+			
+			//Display the game's first paragraph substituting the player's
+			//input throughout the story
+			ConsoleWrite("Once upon a time there were three " + Animal)
+			ConsoleWrite("s. There was a daddy " + Animal + ", a ")
+			ConsoleWrite("mommy " + Animal + " and a baby " + Animal)
+			ConsoleWrite(". One day the three " + Animal + "s returned ")
+			ConsoleWrite("from foraging in the forest and found their ")
+			ConsoleWrite("front door open. Inside, baby " + Animal) 
+			ConsoleWrite(" immediately noticed that someone had eaten ")
+			ConsoleWrite("all of the " + Dessert + " from their bowls. ")
+			COnsoleWrite(" Baby " + Animal + " was hungry and began to ")
+			ConsoleWriteLine("cry.")
+			
+			ConsoleWriteLine("")  //Write a blank line on the console
+			ConsoleWriteLine("")  //Write a blank line on the console
+			ConsoleWriteLine("Press any key to continue.")
+			
+			Console.ReadKey()    //Wait for the player to press a key
+			
+			ClearConsole()        //Clear the console
+			ConsoleWriteLine("")  //Write a blank line on the console
+			
+			//Display the game's second paragraph substituting the 
+			//player's input throughout the story			
+			ConsoleWrite("To try and make baby " + Animal + " feel ")
+			ConsoleWrite("better, daddy and mommy " + Animal + " took ")
+			ConsoleWrite("baby " + Animal + " to the family room to ")
+			ConsoleWrite("watch " + Teacher + " on the television. ")
+			ConsoleWrite("However, upon entering the room ")
+			ConsoleWrite("they found that someone had broken baby ")
+			ConsoleWrite(Animal + "’s " + toy + ". Baby ")
+			ConsoleWrite(Animal + " broke down into tears and could ")
+			ConsoleWriteLine("not stop sobbing.")
+			
+			ConsoleWriteLine("")  //Write a blank line on the console
+			ConsoleWriteLine("")  //Write a blank line on the console
+			ConsoleWriteLine("Press any key to continue.")
+			
+			Console.ReadKey()    //Wait for the player to press a key
+		
+			ClearConsole()        //Clear the console
+			ConsoleWriteLine("")  //Write a blank line on the console
+			
+			//Display the game's final paragraph substituting the 
+			//player's input throughout the story	
+			ConsoleWrite("After finally calming the young " + Animal)
+			ConsoleWrite(" down, daddy " + Animal + " and mommy ")
+			ConsoleWrite(Animal + " decided to put baby " + Animal)
+			ConsoleWrite(" to bed. However, upon ")
+			ConsoleWrite("reaching their bedroom, they found that ")
+			ConsoleWrite("someone was already sleeping in their bed. ")
+			ConsoleWrite("That night all three " + Animal + "s slept ")
+			ConsoleWrite("well. While baby " + Animal + "’s toy was ")
+			ConsoleWrite("still broken everyone's tummies were now full ")
+			ConsoleWrite("and no one in the forest ever dared enter ")
+			ConsoleWrite("the " + Animal + "’s house again.")
+			
+			ConsoleWriteLine("")  //Write a blank line on the console
+			ConsoleWriteLine("")  //Write a blank line on the console
+			ConsoleWriteLine("THE END")
+			
+			ConsoleWriteLine("")  //Write a blank line on the console
+			ConsoleWriteLine("")  //Write a blank line on the console
+			ConsoleWriteLine("Press any key to continue.")
+			
+			Console.ReadKey()    //Wait for the player to press a key
+			
+			ClearConsole()       //Clear the console
+			ConsoleWriteLine("")	  //Write a blank line on the console
+			
+			//Set text alignment to center
+			SetConsoleTextAlignment ("Center")
+			
+			//Display a message thanking the player for playing the game
+			ConsoleWriteLine("Thank you for playing the Story Time game!")
+			
+			Delay(3000)   //Wait 3 seconds before allowing the game to end		
+			
+		Else    //Execute the following statements when the player clicks 
+			    //on the No button
+			
+			//Display a message in a popup window inviting the player to 
+			//play again another time
+			Alert("OK. Perhaps another time.", "Story Time")	
+			
+		End If
+			
+	End Method
+
+End Program

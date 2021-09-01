@@ -1,0 +1,56 @@
+// Autor: L.F.Serflaten
+Program ReferenciaDeColor
+
+	// Referencia de Color KPL
+	// Este programa muestra todos los colores conocidos
+	// en KPL, acompañados por sus valores numéricos.
+	Method Main()
+	
+		Define indice As Int
+		Define X As Int
+		Define Y As Int
+		
+		// Configura la pantalla
+		SetDeviceCoordinates()
+		SetScreenSize(575, 375)
+		Clear(8)
+		
+		// Inicia un ciclo que recorre todos los colores
+		X = 10
+		Y = 10
+		For indice = 1 To 140
+			MuestraColor(indice, X, Y)
+			Y = Y + 20
+			If Y > 360 Then
+				Y = 10
+				X = X + 70
+			End If
+		Next
+		
+	End Method
+	
+	Method MuestraColor(Indice As Int, X As Int, Y As Int)
+		
+		Pen(False)
+		Color(137)
+		
+		// Alinea el texto
+		MoveTo(X + 14, Y)
+		If Indice > 9 Then
+			MoveTo(X + 7, Y)
+		End If
+		
+		If Indice > 99 Then
+			MoveTo(X , Y)
+		End If
+		
+		Print(Indice)
+		
+		// Dibuja una caja de color
+		Color(Indice)
+		MoveTo(X + 25, Y)
+		Rectangle(30, 18, True)
+		
+	End Method
+	
+End Program

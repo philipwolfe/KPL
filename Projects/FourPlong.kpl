@@ -1,0 +1,307 @@
+
+// All KPL programs start with the word "Program" followed by the
+// name of your program, and end with the words "End Program".
+Program NewProgram
+
+	// Current Y position of left player's paddle
+	Define LeftPlayerY As Int 
+	// Current Y position of right player's paddle
+	Define RightPlayerY As Int 
+		// Current X position of top player's paddle
+	Define TopPlayerX As Int
+		// Current X position of bottom player's paddle
+	Define BottomPlayerX As Int
+	// define Speed that the paddles move, bigger the number the faster it will go, Beginner 5 - 10, Amateur 10 - 15, Expert 15 - 25
+	Define PaddleSpeed As Int = 15
+	// Speed that the game plays, bigger the number the slower it will go
+	Define GameSpeed As Int = 30
+	// Speed the ball will travel, bigger the number the slower it will go, beginner 40 - 60 Amateur 20 - 30, Expert 5 - 10
+	Define BallSpeed As Int = 100
+	// Scoring count
+	Define HitCount As Int = 0
+	
+	
+	// Current position of the ball along the X axis
+	Define BallX As Int 
+	// Current position of the ball along the Y axis
+	Define BallY As Int 
+	// Current move amount for the ball along the X axis
+	Define MoveX As Int 
+	// Current move amount for the ball along the Y axis
+	Define MoveY As Int 
+	
+	Define GameOver As Bool
+	
+	// Setup the screen for play
+	Method SetUpGameScreen()
+		SetDeviceCoordinates()
+
+		// Paint the black background
+		Color(78) // green
+		Rectangle(650, 495, True)
+		
+		// Left player's paddle
+		LeftPlayerY = 225 
+        LoadSprite( "LEFT", "PADDLE.GIF" ) 
+        MoveSpriteToPoint( "LEFT", 30, LeftPlayerY )
+        ShowSprite( "LEFT" )
+
+		// Right player's paddle
+		RightPlayerY = 225
+        LoadSprite( "RIGHT", "PADDLE.GIF" ) 
+        MoveSpriteToPoint( "RIGHT", 597, RightPlayerY )
+        ShowSprite( "RIGHT" )
+
+		// Top player's paddle
+		TopPlayerX = 280
+        LoadSprite("TOP", "Paddle.png" ) 
+        MoveSpriteToPoint( "TOP", TopPlayerX, 30 )
+        ShowSprite( "TOP" )
+
+		// Bottom player's paddle
+		BottomPlayerX = 280
+        LoadSprite("BOTTOM", "Paddle.png" ) 
+        MoveSpriteToPoint( "BOTTOM", BottomPlayerX, 430 )
+        ShowSprite( "BOTTOM" )
+	
+	End Method
+	
+	// ServeTheBall randomly decides direction of the ball at the start of each round
+	Method ServeTheBall()
+		// First we automatically center players' paddles
+		LeftPlayerY = 225
+        MoveSpriteToPoint( "LEFT", 30, LeftPlayerY )
+		RightPlayerY = 225
+        MoveSpriteToPoint( "RIGHT", 597, RightPlayerY )	
+		TopPlayerX = 280
+        MoveSpriteToPoint( "TOP", TopPlayerX, 30 )
+		BottomPlayerX = 280
+        MoveSpriteToPoint( "Bottom", BottomPlayerX, 430 )	
+		
+		Define TimeLine As Int[] = {50,50,50,50,50,50,50,50,50,50}
+		
+		// We wait 2 seconds to make sure the players are ready
+		Delay(1000) 
+		
+		// We set initial location and reset the VolleyCount	
+		BallX = 300 
+		BallY = 250
+		MoveX = Random(1,10)
+		
+		MoveY = Random(1,10)
+		//VolleyCount = 0
+			
+		
+		// We load and display the ball sprite
+		LoadSprite( "BALL", "LOL.gif" ) //BlueBall.png
+		SetSpriteAnimationTimeline("BALL",True,TimeLine)
+		
+        MoveSpriteToPoint( "BALL", BallX, BallY )
+        ShowSprite( "BALL" )
+        
+		// The ball begins moving at a rate of 5 or 6 along the X axis
+		
+		
+		While MoveX = 0
+			MoveX = Random(MoveX * -1, MoveX)  
+		End While	
+		Trace("X = " + ConvertToString(MoveX))
+				
+		While MoveY = 0
+			MoveY = Random(MoveY * -1, MoveY) 
+		End While
+		Trace("Y = " + ConvertToString(MoveY)) 
+		
+		// This is like flipping a coin to get a 0 or a 1.  If it's 1, the
+		// ball will move to the left, otherwise it will move to the right
+		If Random(0, 1) = 1 Then 
+			MoveX = MoveX * -1   
+		End If
+
+		// We do the same trick in the Y direction, randomly deciding whether
+		// the ball is moving upward or downward
+		If Random(0, 1) = 1 Then 
+			MoveY = MoveY * -1   
+		End If	
+
+	End Method
+		
+	// Process key events handles any keys that are being pressed at the moment, 
+	// this in general is For paddle movment
+	Method ProcessKeyEvents()
+		// Up arrow key moves right player paddle upward
+		If IsKeyDown("Up") And RightPlayerY > 1 Then 
+			RightPlayerY = RightPlayerY - PaddleSpeed	
+		End If
+		
+		// Down arrow key moves right player paddle downward
+		If IsKeyDown("Down") And RightPlayerY < ScreenHeight() - GetSpriteHeight("RIGHT") Then 
+			RightPlayerY = RightPlayerY + PaddleSpeed	
+		End If
+		MoveSpriteToPoint( "RIGHT", 597, RightPlayerY ) 
+	
+	 	// W key moves left player paddle upward
+		If IsKeyDown("W") And LeftPlayerY > 1 Then
+			LeftPlayerY = LeftPlayerY - PaddleSpeed	
+		End If
+		// Z key moves left player paddle downward
+		If IsKeyDown("Z") And LeftPlayerY < ScreenHeight() - GetSpriteHeight("LEFT") Then 
+			LeftPlayerY = LeftPlayerY + PaddleSpeed	
+		End If
+		MoveSpriteToPoint( "LEFT", 30, LeftPlayerY ) 
+		
+		// D key moves top player paddle left
+		If IsKeyDown("D") And TopPlayerX < ScreenWidth() - GetSpriteWidth("TOP") Then 
+			TopPlayerX = TopPlayerX + PaddleSpeed	
+		End If
+		
+		// A key moves top player paddle right
+		If IsKeyDown("A") And TopPlayerX > 1 Then 
+			TopPlayerX = TopPlayerX - PaddleSpeed	
+		End If
+		MoveSpriteToPoint( "TOP", TopPlayerX, 30 ) 
+		
+		
+		// Right arrow key moves bottom player paddle left
+		If IsKeyDown("Right") And BottomPlayerX < ScreenWidth() - GetSpriteWidth("BOTTOM") Then 
+			BottomPlayerX = BottomPlayerX + PaddleSpeed	
+		End If
+		
+		// Left arrow key moves bottom player paddle right
+		If IsKeyDown("Left") And BottomPlayerX > 1  Then 
+			BottomPlayerX = BottomPlayerX - PaddleSpeed	
+		End If
+		MoveSpriteToPoint( "BOTTOM", BottomPlayerX, 430 ) 
+		
+	End Method
+	
+	// Make the ball move and handle paddle impacts
+	Method MoveTheBall()
+	
+		// Adjust the location of the ball using it's current move amount
+		// along both the X and Y axes, then move it to there
+		BallX = BallX + MoveX 
+		BallY = BallY + MoveY 
+		MoveSpriteToPoint( "BALL", BallX, BallY ) 
+		
+		// If the ball moves off the screen to the right, you lose, game ends
+		If BallX > ScreenWidth() + 10 Then 
+			GameOver = True
+		Else
+			// If the ball moves off the screen to the left, you loose, game ends
+			If BallX < -10 Then 
+				GameOver = True
+			End If
+		End If
+		
+		// If the ball moves off the screen to the bottom, you loose, game ends
+		If BallY > ScreenHeight() + 10 Then 
+			GameOver = True
+		Else
+			// If the ball moves off the screen to the top, you loose, game ends
+			If BallY < -10 Then 
+				GameOver = True
+			End If
+		End If
+		
+		If GameOver Then
+			PlaySound( "CannonHit.wav" )
+			ClearSprites()
+			Alert("Your score is: " + ConvertToString(HitCount) + " Hits", "Score")
+		End If
+		
+		// If the game is not over yet
+		If GameOver = False Then 
+			// If the ball is intersecting any paddle
+			If SpritesIntersect( "BALL", "LEFT" ) Or SpritesIntersect( "BALL", "RIGHT" ) Or SpritesIntersect( "BALL", "TOP" ) Or SpritesIntersect( "BALL", "Bottom" ) Then
+				// Keep count of how maney time the ball is hit with a paddle for scoring
+				HitCount = HitCount + 1
+				// Play a sound that indicates the ball was hit
+				PlaySound( "Bounce.wav" )
+				// Since we're processing a Left/Rigth paddle hit, the ball bounces by changing direction along 
+				// the X axis
+				If SpritesIntersect( "BALL", "LEFT" ) Or SpritesIntersect( "BALL", "RIGHT" ) Then
+					// change the direction the ball is moving
+					MoveX = MoveX * -1
+					// We add -1, 0 or 1 to the move along the Y axis, to keep things interesting
+					MoveY = MoveY - 1 + Random(0, 2) 
+					// make sure that the ball dosn't get stuck on the paddle
+					MoveY = MoveY + 10
+					// Since this was a bounce, we should go ahead and move the ball to it's new 
+					// bounced location, heading back the other way.  This is actually important to
+					// keep the ball from getting "stuck" in the paddle.
+					BallX = BallX + MoveX 
+					BallY = BallY + MoveY 
+					MoveSpriteToPoint( "BALL", BallX, BallY )
+				End If
+				// Since we're processing a Top/Bottom paddle hit, the ball bounces by changing direction along 
+				// the Y axis
+				If SpritesIntersect( "BALL", "TOP" ) Or SpritesIntersect( "BALL", "BOTTOM" ) Then
+					// change the direction the ball is moving 
+					MoveY = MoveY * -1
+					// We add -1, 0 or 1 to the move along the X axis, to keep things interesting
+					MoveX = MoveX - 1 + Random(0, 2) 
+					// make sure that the ball dosn't get stuck on the paddle
+					MoveX = MoveX + 10
+					// Since this was a bounce, we should go ahead and move the ball to it's new 
+					// bounced location, heading back the other way.  This is actually important to
+					// keep the ball from getting "stuck" in the paddle.
+					BallX = BallX + MoveX 
+					BallY = BallY + MoveY 
+					MoveSpriteToPoint( "BALL", BallX, BallY )
+				End If
+			End If
+			
+		End If
+		
+	End Method
+
+	// This is the starting point of the program, and is 'called'
+	// by KPL automatically when the program is run.
+	//
+	// To expand this method, double-click on the box below or click
+	// the plus symbol to the left of the words "Method Main()"
+	Method Main()
+
+		// Enter your program code here
+
+		Define CurrentTime As Decimal 
+		Define GameTimeLastChecked As Decimal
+		Define BallTimeLastChecked As Decimal
+		
+		// call the set up screen method
+		SetUpGameScreen()
+		
+		// server the Ball to strat the game
+		ServeTheBall()
+		
+		Alert("Left W and Z, Right Up and Down, Bottom Left and Right, Top A and D.", "Get ready!")
+		
+		While GameOver = False
+			
+			CurrentTime = TickCount()	
+			
+			// If GameSpeed (default = 20) milliseconds have not passes since the last time we checked, we don't
+			// do anything yet.
+			If CurrentTime - GameTimeLastChecked > GameSpeed Then			
+				// Every 25 milliseconds (that's 40 times a second!) we fall into this block.
+				// First we process Key events to move the paddles			
+				ProcessKeyEvents()
+				// We reset the timer each time, so that we wait another GameSpeed milliseconds
+				// before moving again.
+				GameTimeLastChecked = CurrentTime
+			End If
+			
+			// Ball Speed (default = 40) milliseconds have not passes since the last time we checked, we don't
+			// do anything yet.
+			If CurrentTime - BallTimeLastChecked > BallSpeed Then			
+				// we MoveTheBall.  the ball speed is handles seperatly from the game speed 
+				MoveTheBall()
+				
+				BallTimeLastChecked = CurrentTime
+			End If
+			
+		End While
+	End Method
+
+End Program

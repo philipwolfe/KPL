@@ -1,0 +1,130 @@
+// ------------------------------------------------------
+// El programa CoordenadasPolares muestra algunas gráficas
+// simples pero muy interesantes para ilustrar un 
+// sistema de coordenadas polares.
+// Las coordenadas polares se convierten a coordenadas 
+// cartesianas (X,Y) para desplegarse en pantalla.
+// Autor: Ken Ingle
+//
+Program CoordenadasPolares
+
+	// La estructura PuntoCartesiano se utiliza para
+	// pasar coordenadas (X, Y) al hacer la conversión
+	// para el despliegue.
+	Structure PuntoCartesiano
+		X As Decimal
+		Y As Decimal
+	End Structure
+	
+	// Un punto en coordenadas polares se define por
+	// la distancia desde el centro,
+	// R, y el arco/ángulo, Theta
+	Structure PuntoPolar
+		R As Decimal
+		Theta As Decimal
+	End Structure
+
+	// Los valores de Xmax y Ymax se definen dentro del método
+	// IniciaPantalla
+	Define Xmax As Int 
+	Define Ymax As Int 
+	
+	// Color para la gráfica.
+	Define colorGrafica As Int = 96	
+	
+	// Devuelve el punto cartesiano correspondiente al
+	// punto designado como p en el sistema de coordenadas
+	// polares.
+	Function ObtieneCartesiano(p As PuntoPolar) As PuntoCartesiano
+	
+		// El punto que calcularemos y devolveremos
+		Define c As PuntoCartesiano  
+		
+		// Resolviendo para los lados X y Y del triángulo
+		// con hipotenusa de longitud p.R cuyo ángulo de 
+		// inclinación es p.Theta
+		c.X = p.R * Cos(p.Theta)
+		c.Y = p.R * Sin(p.Theta)
+		
+		Return c			
+	End Function
+
+	// Devuelve el punto polar correspondiente al 
+	// punto proporcionado en el sistema de 
+	// coordenadas cartesianas.
+	// NOTA: Esta función no es utilizada por el 
+	// programa, se mantuvo para dar mayor claridad.
+	Function ObtienePolar(c As PuntoCartesiano) As PuntoPolar
+	
+		// El punto que calcularemos y devolveremos
+		Define p As PuntoPolar 
+		
+		p.R = Sqrt( (c.X * c.X) + (c.Y * c.Y) )
+		p.Theta = ArcTan( c.Y / c.X )
+		
+		Return p	
+	End Function
+
+	// Dibujamos un punto en la pantalla
+	Method DibujaPuntoPolar(p As PuntoPolar)
+	
+		Pen(False)
+		Define c As PuntoCartesiano
+		
+		c = ObtieneCartesiano(p)
+		
+		MoveTo(c.X * Xmax, c.Y * Ymax)
+		Color(colorGrafica)
+		Pen(True)
+		Circle(1, True)
+	
+	End Method
+
+	// Prepara la pantalla para el dibujo.  La función principal
+	// de este método será dibujar las líneas de X=0 y Y=0 
+	// en la pantalla.
+	Method IniciaPantalla()
+		
+		Xmax = ScreenWidth() / 2
+		Ymax = ScreenHeight() / 2
+		
+		// Dibuja la línea Horizontal
+		DrawLine(-1 * Xmax, 0, Xmax, 0)
+		
+		// Dibuja la línea Vertical
+		DrawLine(0, -1 * Ymax, 0, Ymax)
+	
+	End Method
+		
+	// Nuestro método Main.  Después de preparar la pantalla, 
+	// dibujamos la función f(Theta) = R
+	Method Main()
+
+		SetAlgebraCoordinates()
+		IniciaPantalla()	
+		
+		Define i As Decimal
+		Define p As PuntoPolar
+
+		For i = 1 To 50 * 10000
+			p.Theta = i / 10000
+			
+			// Nuestra función
+			//p.R = Sin(8 * p.Theta)
+			
+			// Coloca comentarios a la función de arriba
+			// y quita comentarios a una de las líneas a
+			// continuación para ver otros tipos de gráficas.
+			
+			// p.R = ArcTan(p.Theta)
+			// p.R = Tan(p.Theta)
+			// p.R = Sin(4 * p.Theta)
+			// p.R = ArcTan(0.03 * p.Theta)		
+			
+			DibujaPuntoPolar(p)			
+			
+		Next
+
+	End Method
+
+End Program

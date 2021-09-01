@@ -1,0 +1,31 @@
+Program Prueba_Recursividad
+
+	Method DibujaCuadro( Izquierda As Int, Arriba As Int, Tamanio As Int )
+	
+		Define MitadDelTamanio As Int = Tamanio / 2
+		If MitadDelTamanio > 5 Then
+		
+			DibujaCuadro( Izquierda, Arriba, MitadDelTamanio )
+			DibujaCuadro( Izquierda, Arriba + MitadDelTamanio, MitadDelTamanio )
+			DibujaCuadro( Izquierda + MitadDelTamanio, Arriba + MitadDelTamanio, MitadDelTamanio )
+			DibujaCuadro( Izquierda + MitadDelTamanio, Arriba, MitadDelTamanio )
+
+		Else
+		
+			ClearRectRGB( Izquierda, Arriba, Tamanio, Tamanio, Tamanio, Izquierda, Arriba )
+			RefreshScreen()
+			
+			Delay( 1 )
+
+		End If
+
+	End Method
+
+	Method Main()
+	
+		PenWidth( 2 )
+		DibujaCuadro( 0, 0, 255 )
+	
+	End Method
+
+End Program 

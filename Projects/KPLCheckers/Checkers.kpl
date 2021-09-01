@@ -1,0 +1,319 @@
+Program Checkers
+// Difficulty: Intermediate
+// Concepts: Drag and Drop
+
+// Many children already know how to play Checkers.
+	
+// To help in understanding the topic presented here, there are very
+// few game rules applied to keep the code used to just that needed to
+// provide the basic functionality.  The user can move the checkers to
+// any open square on the board, much like the real life game of checkers.
+// While playing a game, it will be up to the opponant to make sure the
+// player makes a valid move.
+
+// The display on the screen is just a large picture that is maintained
+// by the system.  Even though there are 12 checkers per side in the
+// game of checkers, they don't all need to move at the same time.  In
+// fact only one is allowed to move at a time.  For that reason, there
+// is only one sprite used for the entire game.  It is used to draw the
+// checkers where they need to be (StampSprite) and also for the Drag
+// and Drop operation.
+
+Structure GameSquare
+	BackGround As Int
+	Checker As Int
+End Structure
+
+// Constants that equate to the checker type
+Var RED_PAWN As Int = 1
+Var RED_KING As Int = 2
+Var BLACK_PAWN As Int = 3
+Var BLACK_KING As Int = 4
+
+// Constant used for the sprite name.  (Less to type)
+Var SPR As String = "CheckerGamePiece"
+
+// Constants for the actual color values of the squares
+Var LIGHT As Int = 95
+Var DARK As Int = 130
+
+// Constants that indicate the size of each square and the
+// entire board offset from the upper left corner.  Checkers
+// are set 1 pixel in from the edge of the squares.
+// (Cube was less to type, but it really means a single square)
+Var CUBE As Int = 42
+Var CUBE_OFFSET As Int = 24
+Var CHIP_OFFSET As Int = 25
+
+// The array to hold data on all the checkerboard squares 
+Var Board As GameSquare[64] 
+
+// Variables needed for the Drag and Drop operation
+Var Dragging As Bool
+Var MouseX As Int
+Var MouseY As Int
+Var Selected As Int
+Var StartIndex As Int 
+
+Method Main()
+// Application entry point
+	    
+	// Initialize the screen
+	SetDeviceCoordinates()
+	SetScreenSize(380, 380)
+	// Add mouse event handler
+	SetMouseEvent("MouseInput")
+	// Load up the single sprite
+    LoadSprite( SPR, "Checkers.gif" )
+	// Initialize the game board
+	NewGame()
+	DrawBoard()
+	
+	// Permanent loop to allow the program to keep running.
+	// (Making mouse input possible)
+	While True
+		RefreshScreen()
+	End While
+		
+End Method
+
+Method MouseInput(Event As String, X As Int, Y As Int, Button As Int)
+// Handles all mouse input
+
+	// Everything done to the game board has to be done to
+	// one of its elements at a specific index.  For that reason
+	// most interaction with the board is done using an index value
+	Var idx As Int = FindIndex(X, Y)
+
+	
+    If Event = "ButtonDown" Then
+		// There are places the mouse can go that are not a part
+		// of the game board.  FindIndex insures that only valid
+		// indexes are returned when the mouse is over the board.
+		// If the mouse is not over the board, 0 is returned. 
+		If idx > 0 Then
+			// The checker type is assigned to Selected
+			// (if present at that index)
+			Selected = Board[idx].Checker
+			If Selected > 0 Then 
+				// OK there is a checker here so the drag operation
+				// has to begin.  First the current index is stored
+				// for later retreval, and the the sprite is moved
+				// to that position because it is the object that will
+				// actually be moved.
+				StartIndex = idx
+				MoveChecker(idx, Selected)
+				// Now the board is redrawn at that square, minus the
+				// checker that was there, with the sprite shown in its
+				// place.
+				DrawCube(idx, False)
+				ShowSprite(SPR)
+				// Keeping the mouse offsets when clicked allows the
+				// sprite to move with the mouse, in relatively the
+				// same spot it was clicked on.
+				MouseX = X - GetSpriteLeft(SPR)
+				MouseY = Y - GetSpriteTop(SPR)
+				// The dragging flag lets the other events know there
+				// is a valid drag operation going on.
+				Dragging = True
+			End If
+		Else
+			// The mouse must be out of bounds.  What could be put
+			// here to allow players to add checkers to the board?
+			// Suggestion: there are four sides to the screen, and
+			// four types of checkers....
+		End If
+    End If
+	
+
+	If Dragging Then
+		// When the mouse moves, and there is a drag operation in progress,
+		// all that needs to be done is to move the sprite so that it follows
+		// the mouse.
+		If Event = "Move" Then
+			MoveSpriteTo(SPR, X - MouseX, Y - MouseY)
+		End If
+		
+		// This is the meat of the operation.  It has to contain all the
+		// rules for dragging, such as a checker can't be dropped on
+		// another checker. Or what happens if it is dropped somewhere off
+		// the board, etc.
+		If Event = "ButtonUp" Then
+			If idx < 1 Then
+				// It was dropped off the board, (a valid move when removing
+				// jumped checkers) so the checker is removed from its start
+				// index
+				Board[StartIndex].Checker = 0
+			Else
+				// Check to see if there is a checker already here or not
+				If Board[idx].Checker = 0 Then
+					// No checker here, so the old index is cleared
+					// because the checker will be moved here.
+					Board[StartIndex].Checker = 0
+
+					// (GAME RULE - King Option)
+					// The game of checkers has a King option when the
+					// pawn reaches the opposite side.  If that happens
+					// the checker is upgraded to a King. There are 8
+					// squares in a row, using Mod 8 indicates which
+					// column the mouse is at.
+					If (Selected = BLACK_PAWN) And (idx Mod 8) =  1 Then
+						// At the first column
+						Selected = BLACK_KING
+					End If
+					If (Selected = RED_PAWN) And (idx  Mod 8) =  0 Then
+						// At the eigth column
+						Selected = RED_KING
+					End If
+					
+					// Finally the checker is added to the board and
+					// the Sprite is used to draw the checker at its new
+					// position.
+					Board[idx].Checker = Selected
+					MoveChecker(idx, Selected)
+					StampSprite(SPR)
+				Else
+					// (GAME RULE - Can't move on to other checkers)
+					// There must have been a checker already here so
+					// the drag operation has to be reset to like it was
+					// at the start.
+					MoveChecker(StartIndex, Selected)
+					StampSprite(SPR)
+				End If
+			End If
+			// Done with dragging, so the sprite is hidden and the operation
+			// turned off.
+			HideSprite(SPR)
+			Dragging = False
+		End If
+	End If
+End Method
+
+Method MoveChecker(Index As Int, Checker As Int)
+// This methods just makes it easier to both move
+// the sprite and set the type of checker at the same
+// time.  It makes for less code in the mouse handler
+// and DrawCube.
+	Var X As Int = (Index - 1) Mod 8
+	Var Y As Int = Floor((Index - 1) / 8)
+	SetSpriteActiveFrame(SPR, Checker)
+	MoveSpriteToPoint(SPR, X * CUBE + CHIP_OFFSET, Y * CUBE + CHIP_OFFSET)
+End Method
+
+Function FindIndex(X As Int, Y As Int) As Int
+// This method returns the board index value when the mouse
+// is actually over the board.  0 otherwise.
+
+	// Convert X and Y to column and row
+	Var XX As Int = (X - CUBE_OFFSET) / CUBE
+	Var YY As Int = (Y - CUBE_OFFSET) / CUBE
+
+	// Test to see if the mouse is over the board
+	If X >= CUBE_OFFSET And Y >= CUBE_OFFSET And X <= 356 And Y<= 356 Then
+		// Its over the board, test to see if it is within the
+		// square, and not on a black line (between squares).
+		If ((X - CUBE_OFFSET) Mod CUBE) < 40 And ((Y - CUBE_OFFSET) Mod CUBE) < 40 Then
+			// Its over a square, return the index
+			Return (1 + XX + (YY * 8))
+		Else
+			// It is on a black line so if they are dragging
+			// it just gets put back into its old location
+			If Dragging Then 
+				Return StartIndex
+			End If
+		End If
+	End If
+	Return 0
+End Function
+
+Method DrawBoard()
+// Code to draw the starting configuration.
+	Var idx As Int 
+
+	Pen(False)
+	Clear(26)
+	// A black background makes the black lines between squares
+	Color(8)
+	MoveTo(20, 20)
+	Rectangle(341, 341, True)
+	// Now all the squares
+	For idx = 1 To 64
+		DrawCube(idx, True)
+	Next
+
+End Method
+
+Method DrawCube(Index As Int, Checker As Bool)
+// This method draws an individual square, with or
+// without its checker.  (Drawn without is needed at
+// the start of a drag operation where the board still
+// says there is a checker there, but the user is dragging 
+// it away.)
+
+	// Convert index to column and row
+	Var X As Int = (Index - 1) Mod 8
+	Var Y As Int = (Index - 1) / 8
+	
+	// Colored square
+	Color(Board[Index].Background)
+	MoveTo(X * CUBE + CUBE_OFFSET, Y * CUBE + CUBE_OFFSET)
+	Rectangle(39, 39, True)
+	
+	// Checker
+	If Checker  Then
+		If board[index].Checker > 0 Then
+			MoveChecker(Index, board[index].Checker)
+			StampSprite(SPR)
+		End If
+	End If
+
+End Method
+
+Method NewGame()
+// This sets up the board array to its initial 
+// configuation.  Both the colors and checkers 
+// are added at this time.
+
+	Var idx As Int
+	
+	// Just to be sure, the checkers are all erased.
+	For idx = 1 To 64
+		Board[idx].Checker = 0
+	Next
+
+	For idx = 1 To 64 Step 8
+		// idx counts up by 8 (1, 9, 17, 25, 33, ...)
+		// Mod 16 of them are (1, 9,  1,  9,  1, ...)
+		// So the Mod 16 value equals 1 for every other row,
+		// which is what is needed to alternate the colors
+		// from row to row.
+		If (idx Mod 16) = 1 Then
+			Board[idx].Background = LIGHT
+			Board[idx + 1].Background = DARK
+			Board[idx + 2].Background = LIGHT
+			Board[idx + 3].Background = DARK
+			Board[idx + 4].Background = LIGHT
+			Board[idx + 5].Background = DARK
+			Board[idx + 6].Background = LIGHT
+			Board[idx + 7].Background = DARK
+			Board[idx].Checker = RED_PAWN
+			Board[idx + 2].Checker = RED_PAWN
+			Board[idx + 6].Checker = BLACK_PAWN
+		Else
+			Board[idx].Background = DARK
+			Board[idx + 1].Background = LIGHT
+			Board[idx + 2].Background = DARK
+			Board[idx + 3].Background = LIGHT
+			Board[idx + 4].Background = DARK
+			Board[idx + 5].Background = LIGHT
+			Board[idx + 6].Background = DARK
+			Board[idx + 7].Background = LIGHT
+			Board[idx + 1].Checker = RED_PAWN
+			Board[idx + 5].Checker = BLACK_PAWN
+			Board[idx + 7].Checker = BLACK_PAWN
+		End If		
+	Next
+	
+End Method
+
+End Program

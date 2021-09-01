@@ -1,0 +1,161 @@
+//Program: Crazy8Ball.kpl
+//Created: 01/11/2008
+//Version: 1.0
+//Author: Jerry Lee Ford, Jr.
+//Description: This Phrogram game simulates the operation of a Crazy 
+//             Eight-ball fortune telling toy, providing randomly selected 
+//             answers to player questions.
+
+Program EightBall
+
+	//Global constant used to store the name of the game
+	Constant GameTitle As String = "Crazy Eight Ball Game"
+	
+	//Global variables used to store references to different graphic images
+	Define EightBall As Sprite
+	Define YesBall As Sprite
+	Define NoBall As Sprite
+	Define MaybeBall As Sprite
+	Define PerhapsBall As Sprite
+	
+	//Primary method use to control game play
+	Method Main()
+		
+		//Define method variables used in the main() method
+		Define Reply As Boolean = False //Used to store player input
+		Define Msg As String            //Stores a display string
+		Define RandomNumber As Integer  //Stores a randomly generated number
+	
+		//Call on the method that configures Window attributes
+		ConfigureWindow()
+		
+		//Outline the text of the game's welcome message
+		Msg = "Welcome To The " + GameTitle + "!  Are You Ready To Play?"
+		
+		//Display the game's welcome message in a popup dialog window and
+		//prompt the player to click on Yes to play the game or No to quit
+		Reply = Confirm(Msg, GameTitle)
+		
+		//Analyze the player's response
+		If Reply = True Then            //If Reply equals True then the
+                                        //player clicked on the Yes button
+	
+			//Call on the method that preloads image files into memory
+			LoadImageFiles()
+		
+			//Call on the method that displays an image of an eight ball
+			EightBall.Show()
+			
+			//Call on the built-in Delay() method to pause execution
+			Delay(1000)
+			
+			While True                  //Create a loop that runs forever
+			
+				//Prompt the player to think of a question
+				Alert("Think of your question and click on OK.", GameTitle)
+				
+				//Call on the built-in Delay() method to pause execution
+				Delay(1000)
+						
+				//Call on the function that generates and returns a random
+				//number from 1 to 4
+				RandomNumber = GenerateRandomNo()
+				
+				//Call on the method that displays an answer to the player's
+				//question based on a random numeric value passed to it as
+				//an argument
+				DisplayAnswer(RandomNumber)
+				
+				//Call on the built-in Delay() method to pause execution
+				Delay(1000)	
+		
+			End While		
+				
+		Else    //Execute the following statements when the player clicks 
+                //on the No button
+			
+			//Display a message in a popup window inviting the player to 
+			//play again another time
+			Alert("OK. Perhaps another time.", GameTitle)		
+			
+		End If		
+			
+	End Method
+	
+	//This method configures Window attributes
+	Method ConfigureWindow()
+			
+		HideToolbar()   //Prevent the window's toolbar from being displayed
+		SetScreenSize(560, 570)    //Set the screen size to 600x400 pixels
+		SetWindowTitle(GameTitle)  //Display the name of the game in the
+                                   //Window's titlebar
+		
+	End Method
+	
+	//This method pre-loads graphic images displayed during game play
+	Method LoadImageFiles()
+		
+		//Load images into memory representing different views of the eight
+		//ball
+		EightBall.Load("EightBall.jpg")
+		YesBall.Load("YesBall.jpg")
+		NoBall.Load("NoBall.jpg")
+		MaybeBall.Load("MaybeBall.jpg")
+		PerhapsBall.Load("PerhapsBall.jpg")
+		
+	End Method
+	
+	//This method generates and returns a random number in the range of 
+	//1 to 4
+	Function GenerateRandomNo() As Integer
+		
+		//Define a method variable used to store a randomly generated number
+		Define RandomNumber As Integer
+		
+		//Call on the built-in Random function in order to generate a 
+		//random number between 1 and 4
+		RandomNumber = Random(1, 4)
+		
+		//Return the value of the randomly generated number back to the 
+		//calling statement
+		Return RandomNumber
+		
+	End Function
+	
+	//This method generates and displays a graphic image answering the
+	//player's question based on numeric values passed to it as an
+	//argument
+	Method DisplayAnswer(RandomNumber As Integer)
+		
+	    //Retrieve a answer based on the value of the random number		
+	    Select RandomNumber
+			
+			Case 1    //Execute block statements if RandomNumber equals 1
+				YesBall.Show()    //Display an eight-ball image with a Yes answer
+				Delay(3000)       //Pause execution for three seconds
+				YesBall.Hide()    //Hide the display of the image
+			End Case
+			
+			Case 2    //Execute block statements if RandomNumber equals 2
+				NoBall.Show()	  //Display an eight-ball image with a No answer
+				Delay(3000)       //Pause execution for three seconds
+				Noball.Hide()     //Hide the display of the image
+			End Case
+			
+			Case 3    //Execute block statements if RandomNumber equals 3
+				MaybeBall.Show()  //Display an eight-ball image with a Maybe answer
+				Delay(3000)       //Pause execution for three seconds
+				MaybeBall.Hide()  //Hide the display of the image
+			End Case
+			
+			Case 4    //Execute block statements if RandomNumber equals 4
+				PerhapsBall.Show()	//Display an eight-ball image with a Perhaps answer
+				Delay(3000)         //Pause execution for three seconds
+				PerhapsBall.Hide()  //Hide the display of the image
+			End Case
+			
+		End Select
+		
+	End Method
+
+End Program

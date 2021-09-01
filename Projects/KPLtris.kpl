@@ -1,0 +1,346 @@
+Program KPLTRIS
+// This .kpl program runs in KPL - see http://www.k-p-l.org 
+
+// Tetris clone by Michael Hoger
+
+// Difficulty level: Intermediate to Advanced
+// Concepts: String manipulation, array abstractions, nested looping, pen drawing
+// KPL Lines: Around 300
+// Author: Michael Hoger
+
+// Use arrowkeys for playing, p for pause
+
+	Structure Brick
+		x As Int
+		y As Int
+		Field		As Bool[ 9 ]
+	End Structure
+	
+	Define GameBrick As String[ 7 ]
+	Define MyBrick As Brick
+	Define ShowBrick As Bool
+	Define PlayField As Bool[10*23]
+	Define Score As Int
+	Define BrickScore As Int
+	Define RowScore As Int
+	Define MyDelay As Int
+	Define Time As Decimal
+	
+	Function GetRandBrick() As Brick
+		Define i As Int
+		Define RandBrick As Brick
+		
+		Define BrString As String = GameBrick[ Random( 1, 7 )]
+		For i = 1 To 9
+			RandBrick.Field[i] = ConvertToInt( Substring( BrString, i, 1))
+		Next
+		
+		Define Direction As Int = Random( 1, 4 )
+		If Direction > 1 Then
+			For i = 2 To Direction
+				RandBrick = BrickTurnLeft( RandBrick )
+			Next
+		End If
+		
+		RandBrick.X = Random( 2, 5 ) 
+		RandBrick.Y = 0
+		
+		Return RandBrick
+		
+	End Function
+	
+	Function BrickTurnLeft( TurnBrick As Brick ) As Brick
+		Define TempBrick As Brick
+			TempBrick.x = TurnBrick.x
+			TempBrick.y = TurnBrick.y
+			TempBrick.Field[1] = TurnBrick.Field[3]
+			TempBrick.Field[2] = TurnBrick.Field[6]
+			TempBrick.Field[3] = TurnBrick.Field[9]
+			TempBrick.Field[4] = TurnBrick.Field[2]
+			TempBrick.Field[5] = TurnBrick.Field[5]
+			TempBrick.Field[6] = TurnBrick.Field[8]
+			TempBrick.Field[7] = TurnBrick.Field[1]
+			TempBrick.Field[8] = TurnBrick.Field[4]
+			TempBrick.Field[9] = TurnBrick.Field[7]
+		Return TempBrick
+	End Function
+	
+	Method DrawBrick( DBrick As Brick )
+	
+		If Not ShowBrick Then
+			Return
+		End If
+		
+		Define i As Int
+		Define j As Int
+		Define k As Int = 1
+		Color( 8 )
+		For j = 41 + DBrick.y * 20 To 81 + DBrick.y * 20 Step 20
+			For i = 80 + DBrick.x * 20 To 120 + DBrick.x * 20 Step 20
+				If DBrick.Field[k] Then
+					Pen( False )
+					MoveTo( i, j )
+					Pen( True )
+					Rectangle( 19, 19, True )
+				End If
+			k = k +1
+			Next
+		Next
+	
+	End Method
+	
+	Method UpdateScreen()
+	
+		BeginFrame()
+		
+		Clear( 50)
+		
+		Define i As Int
+		Define j As Int
+		Define k As Int = 1
+		Define l As Int
+		
+		Color( 104)
+		Pen( False )
+		MoveTo( 79, 40 )
+		Pen( True )
+		Rectangle( 201, 461, True )
+		Color( 8 )
+		For i = 80 To 260 Step 20
+			l = 0
+			For j = 41 To 481 Step 20
+				Pen( False )
+				MoveTo( i, j )
+				If PlayField[ k + l * 10 ] Then
+					Rectangle( 19, 19, True )
+				End If
+				l = l + 1
+			Next
+			k = k + 1
+		Next
+		
+		DrawBrick( MyBrick )
+		
+		Pen( False )
+		Color( 126 )
+		MoveTo( 60, 20 )
+		Pen ( True )
+		Rectangle( 240, 80, True )
+		
+		Pen(False)
+		Color( 8 )
+		MoveTo(130, 30 )
+		PrintLine( " K P L - T R I S" )
+		PrintLine( "*******************" )
+		
+		Pen(False)
+		Color( 8 )
+		MoveTo(135, 70 )
+		Print( " Score : " )
+		Print( Score )
+		
+		RefreshScreen()
+		
+	End Method
+
+	Method CopyBrickToPlayfield ( PBrick As Brick )
+		Define i As Int
+		Define j As Int
+		Define k As Int
+		Define Row As Int
+		
+		For i = 0 To 2
+			For j = 1 To 3
+				If PBrick.Field[ i * 3 + j ] Then
+					Row = ( PBrick.y - 1 + i ) * 10
+					PlayField[ Row + PBrick.x + j ] = True
+				End If
+			Next
+		Next
+		Score = Score + BrickScore
+		
+		For k = 1 To 3
+		
+			i = 1
+			While i < 11 And PlayField[ Row  + i ]
+				i = i + 1
+			End While
+			
+			If i = 11 Then
+				j = Row + 10
+				While j > 30
+					PlayField[ j ] = PlayField[ j - 10 ]
+					j = j - 1
+				End While
+				ShowBrick = False
+				UpdateScreen()
+				ShowBrick = True
+				Row = Row + 10
+				Score = Score + RowScore
+				RowScore = RowScore * 2
+				PlaySound("chimes.wav")
+				Delay( 500 )
+			End If
+			Row = Row - 10
+			
+		Next
+		
+	End Method
+	
+	Function BrickCantDoThat( CBrick As Brick ) As Bool
+
+		Define i As Int
+		Define j As Int
+		
+		For i = 0 To 2
+			For j = 1 To 3
+				If CBrick.Field[ i * 3 + j ] Then
+					If CBrick.x + j > 10 Then
+						Return True
+					End If
+					If CBrick.x + j <= 0 Then
+						Return True
+					End If
+					If CBrick.y + i > 22 Then
+						Return True
+					End If
+					If PlayField[ (CBrick.y + i ) * 10  + CBrick.x + j ] Then
+						Return True
+					End If
+				End If
+			Next
+		Next
+		
+		Return False
+
+	End Function
+	
+	Function UpdateInput() As Bool
+	
+		If IsKeyDown( "Left" ) Then
+		
+			MyBrick.x = MyBrick.x - 1
+			If BrickCantDoThat( MyBrick ) Then
+				MyBrick.x = MyBrick.x + 1
+			Else
+				Return True
+			End If
+			
+		End If
+
+		If IsKeyDown( "Right" ) Then
+		
+			MyBrick.x = MyBrick.x + 1
+			If BrickCantDoThat( MyBrick ) Then
+				MyBrick.x = MyBrick.x - 1
+			Else
+				Return True
+			End If
+			
+		End If
+				
+		If IsKeyDown( "Up" ) Then
+		
+			MyBrick = BrickTurnLeft( MyBrick )
+			If BrickCantDoThat( MyBrick ) Then
+				MyBrick = BrickTurnLeft( MyBrick )
+				MyBrick = BrickTurnLeft( MyBrick )
+				MyBrick = BrickTurnLeft( MyBrick )
+			Else
+				PlaySound("MenuBeep.wav")
+				Return True
+			End If
+						
+		End If
+		
+		If IsKeyDown( "Down" ) Then
+			MyDelay = MyDelay / 3
+			BrickScore = 20
+			Return True
+		End If
+		
+		If IsKeyDown( "p" ) Then
+		
+			While IsKeyDown( "p" )
+			End While
+
+			While Not IsKeyDown( "p" )
+			End While
+			
+			While IsKeyDown( "p" )
+			End While
+			
+		End If
+		
+		Return False
+		
+	End Function
+	
+	Method Main()
+
+		SetScreenSize( 360, 520 )
+		
+		GameBrick[1] = "010111000"
+		GameBrick[2] = "000110011"
+		GameBrick[3] = "000011110"
+		GameBrick[4] = "100111000"
+		GameBrick[5] = "001111000"
+		GameBrick[6] = "000110110"
+		GameBrick[7] = "010010010"
+	
+		Define GameOver As Bool = False
+		Define BrickMoveDown As Bool
+		Define KeyIsHit As Bool
+		Define Wait As Int
+
+		ShowBrick = True
+		Score = 0
+
+		While Not GameOver
+			
+			MyBrick = GetRandBrick()
+			BrickMoveDown = True
+			MyDelay = 500
+			BrickScore = 10
+			RowScore = 100
+			
+			While BrickMoveDown
+				Time = TickCount()
+			
+				UpdateScreen()
+				
+				KeyIsHit = False
+				
+				While (TickCount() - Time) < MyDelay
+				
+					If Not KeyIsHit Then
+						KeyIsHit = UpdateInput()
+						If KeyIsHit Then
+							UpdateScreen()
+						End If
+					End If
+				
+				End While
+				
+				MyBrick.y = MyBrick.y + 1
+				If BrickCantDoThat( MyBrick ) Then
+					BrickMoveDown = False
+					Delay(100)
+				Else
+					PlaySound("mouseOver.wav")
+				End If
+				
+			End While
+			
+			
+			CopyBrickToPlayfield( MyBrick )
+			
+			If MyBrick.y < 3 Then
+				GameOver = True
+			End If
+			
+		End While
+
+	End Method
+
+End Program

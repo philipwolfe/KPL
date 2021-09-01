@@ -1,0 +1,151 @@
+Program Colisiones
+
+	Define NumeroDePelotas As Int = 30
+	
+	Define Objeto As String[ NumeroDePelotas ]
+	Define X As Int[ NumeroDePelotas ]
+	Define Y As Int[ NumeroDePelotas ]
+	Define DeltaX As Int[ NumeroDePelotas ]
+	Define DeltaY As Int[ NumeroDePelotas ]
+	Define MuestraContorno As Bool = False
+	
+	Define XMax As Int
+	Define YMax As Int
+
+	Define I As Int
+	
+	// Mueve y gira el grafico definido por Objeto[I]
+	Method MueveObjeto( I As Int )
+
+		X[i] = X[i] + DeltaX[i]
+		Y[i] = Y[i] + DeltaY[i]
+
+		//StampSprite( Objeto[i] )
+		MoveSpriteToPoint( Objeto[i], X[i], Y[i] )
+		RotateSpriteBy( Objeto[i], DeltaX[i] + DeltaY[i] )
+		
+	End Method
+	
+	Method Animate()
+	
+		Define Intersecciones As String[]
+		Define TieneIntersecciones As Bool
+		
+		For I = 1 To NumeroDePelotas
+		
+			If MuestraContorno Then
+				Pen( Off )
+				Color( White )
+				MoveTo( GetSpriteLeft( Objeto[i] ), GetSpriteTop( Objeto[i] ) )
+				Pen( On )
+				Rectangle( GetSpriteWidth( Objeto[i] ), GetSpriteHeight( Objeto[i] ), False )
+			End If
+	
+			Intersecciones = GetSpritesThatIntersectWith( Objeto[i] )
+			TieneIntersecciones = (ArrayLength(Intersecciones) > 0)
+			
+			If X[i] + DeltaX[i] < 0 Or X[i] + DeltaX[i] > XMax - GetSpriteWidth( Objeto[i] ) Or TieneIntersecciones Then
+				DeltaX[i] = DeltaX[i] * -1
+			End If
+			
+			If Y[i] + DeltaY[i] < 0 Or Y[i] + DeltaY[i] > YMax - GetSpriteHeight( Objeto[i] )  Or TieneIntersecciones Then
+				DeltaY[i] = DeltaY[i] * -1
+			End If
+			
+			MueveObjeto( I )
+			
+			If MuestraContorno Then
+
+				Pen( Off )
+	
+				If TieneIntersecciones Then
+					Color( Red )
+				Else
+					Color( Gray )
+				End If
+
+				MoveTo( GetSpriteLeft( Objeto[i] ), GetSpriteTop( Objeto[i] ) )
+				Pen( On )
+				Rectangle( GetSpriteWidth( Objeto[i] ), GetSpriteHeight( Objeto[i] ), False )
+
+			End If
+	
+		Next
+
+	End Method 
+	
+	Method MAIN()
+	
+		// Cambia a las coordenadas de la computadora
+		// en vez de las coordenadas algebraicas
+		SetDeviceCoordinates()
+		//Maximiza()
+		
+		PrintLine( "Este programa muestra la capacidad de KPL para realizar pruebas de " )
+		PrintLine( "colisión a nivel pixel en objetos cuyo rectángulo de contorno y posición" )
+		PrintLine( "de pixeles están en cambio constante.  Fijate como los objetos no 'rebotan' " )
+		PrintLine( "hasta que en realidad entran en contacto con otro objeto." )
+		PrintLine( " " )
+		PrintLine( "Peesiona la tecla 'B' para mostrar y ocultar los contornos rectangulares." )
+		
+		XMax = ScreenWidth() - 30
+		YMax = ScreenWidth() - 30
+		
+		XMax = ScreenWidth()
+		YMax = ScreenHeight()
+	
+		Define ColumnasMax As Int = XMax / 70 - 1
+		Define Columna As Int = 1
+		Define Renglon As Int = 1
+
+		For I = 1 To NumeroDePelotas
+		
+			If Columna < ColumnasMax Then
+				Columna = Columna + 1
+			Else
+				Columna = 1
+				Renglon = Renglon + 1
+			End If
+			
+			Objeto[ I ] = "BALL" + I
+			X[ I ] = Columna * 70
+			Y[ I ] = Renglon * 100
+			
+			While DeltaX[i] = 0
+				DeltaX[ I ] = Random( -2, 2 )
+			End While
+			
+			While DeltaY[i] = 0
+				DeltaY[ I ] = Random( -2, 2 )
+			End While
+			
+			LoadSprite( Objeto[i], "paddle.png" )
+			MoveSpriteToPoint( Objeto[i], X[i], y[i] )
+			SetSpriteZIndex( Objeto[i], 100 )
+			ShowSprite( Objeto[i] )
+			
+		Next
+		
+		While True
+		
+			BeginFrame()
+
+			Animate()
+			
+			If GetKey() = "B" Then
+
+				MuestraContorno = Not MuestraContorno
+
+				Color( White )
+				MoveTo( 0, 0 )
+				Rectangle( ScreenWidth(), ScreenHeight(), True )
+	
+			End If
+			
+			RefreshScreen()
+				
+		End While
+		
+	End Method
+
+End Program 

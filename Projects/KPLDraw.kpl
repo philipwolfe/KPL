@@ -1,0 +1,165 @@
+// Drawing is an impressively small program, given what it allows
+// you to do: freehand drawing, in multiple colors, with different
+// sizes of "pens".  In 84 KPL instructions!
+
+// Difficulty level: Intermediate to Advanced
+// Concepts: Mouse handling, pen drawing, color palettes
+// KPL Lines: 84
+// Author: Jamey Friend
+
+Program Drawing
+
+	// The main action is in the Method MouseTrap ().
+	
+    Define Palette As Int [ ] = {137, 47, 25, 8, 43, 114, 17, 100, 49, 139, 77, 52, 134, 14, 42, 10, 85, 113, 84, 132}
+    
+    Define SizeOfColorBoxes As Int = 25
+    Define NumberOfColorBoxes As Int = 20
+    
+    Define StartX As Int
+    Define StartY As Int
+    
+    Define NowDrawing As Bool = False
+    
+    Define BrushSize As Int = 3
+
+    Method Main ( )
+
+        Maximize ( )
+        
+        // Show the colors and brush sizes the artist can choose from.
+        DrawColorBoxes ( )
+        DrawBrushSizes ( )
+        
+        Alert ( "To draw, pick a color and a brush size from the boxes above.  Hint: you can use white to erase.", "Mouse Drawing" )
+        
+        // Set the initial pen width.
+        PenWidth ( BrushSize )
+        
+        // Watch for mouse actions.
+        SetMouseEvent ( "MouseTrap" )
+
+        // And keep watching until the artist stops the program.
+        While True
+        End While
+        
+    End Method
+
+    Method MouseTrap ( Event As String, x As Int, y As Int, Button As Int )
+    
+        // Watch for "ButtonDown".  If the artist touches the drawing area
+        // (i.e. if y > 25), then drawing begins.  If the artist touches the
+        // color box area, the color touched will be chosen.  If the
+        // artist touches the brush area, the brush size will be chosen.
+        
+        If Event = "ButtonDown" Then
+            If y > 25 Then
+                NowDrawing = True
+                
+                // The place the drawing starts is the "start point."
+                StartX = x
+                StartY = y
+            End If
+            
+            If inColorBoxArea ( x, y ) Then
+                SetColor ( x, y )
+            End If
+            
+            If inBrushArea ( x, y ) Then
+                SetBrushSize ( x, y )
+                PenWidth ( BrushSize )
+            End If
+        End If
+
+
+        // Watch for "ButtonUp".  This indicates that the artist is no longer
+        // drawing.
+        
+        If event = "ButtonUp" Then
+            NowDrawing = False
+        End If
+        
+
+        // Watch for "Move".  If the artist is now drawing (and in the drawing
+        // area), make the drawing:
+        // First draw a circle at the previous values of x and y (StartX 
+        // and StartY), then draw a line to the current values of x and y, and
+        // finally draw another circle at the current values of x and y.
+
+        If event = "Move" And NowDrawing And y > 25 + BrushSize/2 Then 
+            JumpTo ( StartX, StartY )
+            Circle ( BrushSize, True )
+            
+            DrawLine ( StartX, StartY, x, y )
+            
+            JumpTo ( x, y )
+            Circle ( BrushSize, True )
+            
+            // This delay allows time for the brush stroke to be completed.
+            Delay ( 10 )
+            
+            // Reset the "start point" to the current point.
+            StartX = x
+            StartY = y
+        End If
+    
+    End Method
+    
+    Method DrawColorBoxes ( )
+        Define i As Int
+        
+        For i = 1 To NumberOfColorBoxes
+        
+            // Go to the next box location.
+            JumpTo ( i*SizeOfColorBoxes, 1 )
+            
+            // Make a box colored with the right color
+            Color ( Palette [i] )
+            Rectangle ( SizeOfColorBoxes, SizeOfColorBoxes, True )
+            
+            // Outline the box in black
+            Color ( Black )
+            Rectangle ( SizeOfColorBoxes, SizeOfColorBoxes, False )
+        Next
+    End Method
+    
+    Method DrawBrushSizes ( )
+        Define i As Int
+        
+        For i = 1 To 5
+        
+            // Get to the right place.
+            JumpTo ( ( NumberOfColorBoxes + i + 2 )*SizeOfColorBoxes, 1 )
+            
+            // Draw an outline of a box.
+            Rectangle ( SizeOfColorBoxes, SizeOfColorBoxes, False )
+            
+            // Move to the middle of the box and draw a circle.
+            JumpTo ( ( NumberOfColorBoxes + i + 2.5 )*SizeOfColorBoxes, SizeOfColorBoxes/2 + 1 )
+            Circle ( i*3, True )
+        Next
+    End Method
+        
+    Method SetColor ( x As Int, y As Int )
+        Color ( Palette [( x + SizeOfColorBoxes )/25 - 1] )
+    End Method
+    
+    Method SetBrushSize ( x As Int, y As Int )
+        Define ToolNumber As Int
+        ToolNumber =  x/25 - NumberOfColorBoxes - 2 
+        BrushSize = 3*ToolNumber
+    End Method
+
+    Function inColorBoxArea ( x As Int, y As Int ) As Bool
+        Return y <= 25 And x <=    ( NumberOfColorBoxes + 1 ) * SizeOfColorBoxes And x >= SizeOfColorBoxes 
+    End Function
+    
+    Function inBrushArea ( x As Int, y As Int ) As Bool
+        Return y <= 25 And x >= ( NumberOfColorBoxes + 3 )*SizeOfColorBoxes And x <= ( NumberOfColorBoxes + 8 ) * SizeOfColorBoxes 
+    End Function
+    
+    Method JumpTo ( x As Int, y As Int )
+        DrawLine ( x, y, x, y )
+    End Method
+    
+End Program

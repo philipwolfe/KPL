@@ -1,0 +1,229 @@
+Program ShakespeareanInsultGenerator
+
+	Function AnAdjective() As String
+	
+		Var Adjectives As String[60]
+		Adjectives[1] = "artless"
+		Adjectives[2] = "bawdy"
+		Adjectives[3] = "beslubbering"
+		Adjectives[4] = "bootless"
+		Adjectives[5] = "churlish"
+		Adjectives[6] = "cockered" 
+		Adjectives[7] = "clouted"
+		Adjectives[8] = "craven"
+		Adjectives[9] = "currish"
+		Adjectives[10] = "dankish"
+		Adjectives[11] = "dissembling"
+		Adjectives[12] = "droning"
+		Adjectives[13] = "errant"
+		Adjectives[14] = "fawning"             
+		Adjectives[15] = "fobbing"             
+		Adjectives[16] = "froward"             
+		Adjectives[17] = "frothy"              
+		Adjectives[18] = "gleeking"            
+		Adjectives[19] = "goatish"             
+		Adjectives[20] = "gorbellied"
+		Adjectives[21] = "impertinent"         
+		Adjectives[22] = "infectious"          
+		Adjectives[23] = "jarring"             
+		Adjectives[24] = "loggerheaded"        
+		Adjectives[25] = "lumpish"             
+		Adjectives[26] = "mammering"           
+		Adjectives[27] = "mangled" 
+		Adjectives[28] = "mewling"             
+		Adjectives[29] = "paunchy"             
+		Adjectives[30] = "pribbling"           
+		Adjectives[31] = "puking"              
+		Adjectives[32] = "puny"                
+		Adjectives[33] = "qualling"            
+		Adjectives[34] = "rank"                
+		Adjectives[35] = "reeky"               
+		Adjectives[36] = "roguish"             
+		Adjectives[37] = "ruttish"             
+		Adjectives[38] = "saucy"               
+		Adjectives[39] = "spleeny"             
+		Adjectives[40] = "spongy"              
+		Adjectives[41] = "surly"               
+		Adjectives[42] = "tottering"           
+		Adjectives[43] = "unmuzzled"           
+		Adjectives[44] = "vain"                
+		Adjectives[45] = "venomed"             
+		Adjectives[46] = "villainous"          
+		Adjectives[47] = "warped"              
+		Adjectives[48] = "wayward"             
+		Adjectives[49] = "weedy"               
+		Adjectives[50] = "yeasty"              
+		Adjectives[51] = "cullionly"           
+		Adjectives[52] = "fusty"               
+		Adjectives[53] = "caluminous"          
+		Adjectives[54] = "wimpled"             
+		Adjectives[55] = "burly-boned"  
+		Adjectives[56] = "misbegotten"         
+		Adjectives[57] = "odiferous"           
+		Adjectives[58] = "poisonous"           
+		Adjectives[59] = "fishified"           
+		Adjectives[60] = "Wart-necked"
+		
+		Return ToUpper(Adjectives[Random(1, 60)])
+	End Function
+		
+	Function ASuperlative() As String
+		Var Superlatives As String[60]
+		Superlatives[1] = "base-court"
+		Superlatives[2] = "bat-fowling"
+		Superlatives[3] = "beef-witted"
+		Superlatives[4] = "beetle-headed"
+		Superlatives[5] = "boil-brained"
+		Superlatives[6] = "clapper-clawed"
+		Superlatives[7] = "clay-brained"
+		Superlatives[8] = "common-kissing"
+		Superlatives[9] = "crook-pated" 
+		Superlatives[10] = "dismal-dreaming"
+		Superlatives[11] = "dizzy-eyed"
+		Superlatives[12] = "doghearted"
+		Superlatives[13] = "dread-bolted"
+		Superlatives[14] = "earth-vexing" 
+		Superlatives[15] = "elf-skinned" 
+		Superlatives[16] = "fat-kidneyed"
+		Superlatives[17] = "fen-sucked" 
+		Superlatives[18] = "flap-mouthed"
+		Superlatives[19] = "fly-bitten" 
+		Superlatives[20] = "folly-fallen"
+		Superlatives[21] = "fool-born"
+		Superlatives[22] = "full-gorged"
+		Superlatives[23] = "guts-griping"  
+		Superlatives[24] = "half-faced"
+		Superlatives[25] = "hasty-witted"
+		Superlatives[26] = "hedge-born"
+		Superlatives[27] = "hell-hated" 
+		Superlatives[28] = "idle-headed"
+		Superlatives[29] = "ill-breeding"  
+		Superlatives[30] = "ill-nurtured" 
+		Superlatives[31] = "knotty-pated"
+		Superlatives[32] = "milk-livered"
+		Superlatives[33] = "motley-minded"
+		Superlatives[34] = "onion-eyed"
+		Superlatives[35] = "plume-plucked"
+		Superlatives[36] = "pottle-deep"
+		Superlatives[37] = "pox-marked"  
+		Superlatives[38] = "reeling-ripe"
+		Superlatives[39] = "rough-hewn"
+		Superlatives[40] = "rude-growing" 
+		Superlatives[41] = "rump-fed"   
+		Superlatives[42] = "shard-borne"  
+		Superlatives[43] = "sheep-biting"
+		Superlatives[44] = "spur-galled"
+		Superlatives[45] = "swag-bellied"  
+		Superlatives[46] = "tardy-gaited" 
+		Superlatives[47] = "tickle-brained"
+		Superlatives[48] = "toad-spotted" 
+		Superlatives[49] = "unchin-snouted"
+		Superlatives[50] = "weather-bitten"
+		Superlatives[51] = "malmsey-nosed"
+		Superlatives[52] = "rampallian"
+		Superlatives[53] = "lily-livered" 
+		Superlatives[54] = "scurvy-valiant" 
+		Superlatives[55] = "brazen-faced"
+		Superlatives[56] = "unwash'd"
+		Superlatives[57] = "bunch-back'd"  
+		Superlatives[58] = "leaden-footed" 
+		Superlatives[59] = "muddy-mettled"
+
+		Return ToUpper(Superlatives[Random(1, 59)])
+	End Function
+
+	Function ANoun() As String
+	
+		Var Nouns As String[60]
+		Nouns[1] = "apple-john"
+		Nouns[2] = "baggage"
+		Nouns[3] = "barnacle"
+		Nouns[4] = "bladder"
+		Nouns[5] = "boar-pig"
+		Nouns[6] = "bugbear"
+		Nouns[7] = "bum-bailey"
+		Nouns[8] = "canker-blossom"
+		Nouns[9] = "clack-dish"
+		Nouns[10] = "clotpole"
+		Nouns[11] = "coxcomb"
+		Nouns[12] = "codpiece"
+		Nouns[13] = "death-token"
+		Nouns[14] = "dewberry"
+		Nouns[15] = "flap-dragon"
+		Nouns[16] = "flax-wench"
+		Nouns[17] = "flirt-gill"
+		Nouns[18] = "foot-licker"
+		Nouns[19] = "fustilarian"
+		Nouns[20] = "giglet"
+		Nouns[21] = "gudgeon"
+		Nouns[22] = "haggard"
+		Nouns[23] = "harpy"
+		Nouns[24] = "hedge-pig"
+		Nouns[25] = "horn-beast"
+		Nouns[26] = "hugger-mugger"
+		Nouns[27] = "joithead"
+		Nouns[28] = "lewdster"
+		Nouns[29] = "lout"
+		Nouns[30] = "maggot-pie"
+		Nouns[31] = "malt-worm"
+		Nouns[32] = "mammet"
+		Nouns[33] = "measle"
+		Nouns[34] = "minnow"
+		Nouns[35] = "miscreant"
+		Nouns[36] = "moldwarp"
+		Nouns[37] = "mumble-news"
+		Nouns[38] = "nut-hook"
+		Nouns[39] = "pigeon-egg"
+		Nouns[40] = "pignut"
+		Nouns[41] = "puttock"
+		Nouns[42] = "pumpion"
+		Nouns[43] = "ratsbane"
+		Nouns[44] = "scut"
+		Nouns[45] = "skainsmate"
+		Nouns[46] = "strumpet"
+		Nouns[47] = "varlot"
+		Nouns[48] = "vassal"
+		Nouns[49] = "whey-face"
+		Nouns[50] = "wagtail"
+		Nouns[51] = "knave"
+		Nouns[52] = "blind-worm"
+		Nouns[53] = "popinjay"
+		Nouns[54] = "scullian"
+		Nouns[55] = "jolt-head"
+		Nouns[56] = "malcontent"
+		Nouns[57] = "devil-monk"
+		Nouns[58] = "toad"
+		Nouns[59] = "rascal"
+		Nouns[60] = "Basket-Cockle"
+
+		Return ToUpper(Nouns[Random(1, 60)])
+	End Function
+
+	Method Main()
+	
+		ShowConsole()
+		SetConsoleFont( "Verdana", 35 )
+		SetConsoleBackgroundColor( Black )
+		SetConsoleFontColor( Red )
+		ClearConsole()
+		ConsoleWriteline( "" )		
+		ConsoleWrite( "THOU " )
+		Delay(500)		
+		ConsoleWriteline( AnAdjective() )
+		Delay(600)		
+		SetConsoleFontSize( 45 )
+		ConsoleWriteline( ASuperlative() )
+		Delay(600)		
+		SetConsoleFontSize( 55 )
+		ConsoleWriteline( ANoun() + "!!!" )
+		Delay(600)		
+		SetConsoleFontSize( 16 )
+		SetConsoleFontColor( White )
+		ConsoleWriteline( "" )
+		ConsoleWriteline( "" )
+		ConsoleWriteline( "" )
+		ConsoleWriteline( "Click Run again if you haven't had enough!" )
+	
+	End Method
+
+End Program

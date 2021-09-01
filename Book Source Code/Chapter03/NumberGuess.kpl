@@ -1,0 +1,132 @@
+//Program: NumberGuess.kpl
+//Created: 12/26/2007
+//Version: 1.0
+//Author: Jerry Lee Ford, Jr.
+//Description: This Phrogram game demonstrates how to generate random 
+//             numbers and to use variables as a means of storing and 
+//             processing data collected during game play using input
+//             provided by the player.
+
+Program NumberGuess
+
+	//Global constant used to store the name of the game
+	Constant cGameTitle As String = "The Number Guessing Game"
+	
+	Method Main()
+		
+		//Define the variables used throughout the program to store data
+		Define Reply As Boolean = False     //Used to store player input
+		Define GameOver As Boolean          //Identifies end of game
+		Define Guess As Integer             //Stores player guesses
+		Define NoOfGuesses As Integer = 0   //Keeps count of player guesses
+		Define RandomNumber As Integer      //Stores the game's random #
+		Define Msg As String                //Stores a display string
+		
+        HideToolbar()   //Prevent the window's toolbar from being displayed
+ 		SetScreenSize (600, 400)    //Set the screen size to 600x400 pixels
+        SetWindowTitle (cGameTitle)  //Display the name of the game in the
+									//Window's titlebar
+        
+		SetConsoleBackgroundColor(WhiteSmoke)        //Set background color
+        SetConsoleFontColor(DarkBlue)                //Set font color
+			
+        SetConsoleFont("Arial", 14)          // Set font to Arial, point 14
+		
+		//Outline the text of the game's welcome message
+		Msg = "Welcome To " + cGameTitle + "!  Are You Ready To Play?"
+		
+		//Display the game's welcome message in a popup dialog window and
+		//prompt the player to click on Yes to play the game or No to quit
+		Reply = Confirm(Msg, cGameTitle)
+		
+		//Analyze the player's response
+		If Reply = True Then            //If Reply equals True then the
+                                        //player clicked on the Yes button
+				
+			While True                  //Create a loop that runs forever
+			
+				//Generate a number from 1 to 100
+				RandomNumber = Random(1, 100)  
+				
+				//Reset value of variable used to keep track of
+				//the number of guesses made by the player
+				NoOfGuesses = 0  
+				
+				ClearConsole()       //Clear the console
+						
+				GameOver = False  //Variable used to control loop execution
+											
+				While GameOver = False  //Loop until the game is over
+									
+					//Prompt the player to enter a guess
+					Guess = ConsoleReadInt("Enter your guess:", False)
+					
+					ClearConsole()       //Clear the console
+							
+					//Discard guess less than 1 and greater than 100 
+					If Guess < 1 Or Guess > 100 Then
+						
+						Alert("Guess is out of range!", cGameTitle)
+					
+					Else
+						
+						//Keep count or valid guesses
+						NoOfGuesses = NoOfGuesses + 1  
+						
+						//Determine if the player's guess was correct
+						If Guess = RandomNumber Then
+							
+							ConsoleWriteLine("")
+							
+							ConsoleWrite("You win! The number was ")
+							ConsoleWrite(RandomNumber + ". ")
+							ConsoleWrite("You guessed it in ")
+							ConsoleWrite(NoOfGuesses + " guesses.")
+							ConsoleWriteLine("")
+							ConsoleWriteLine("")
+							ConsoleWriteLine("Press any key to play again.")
+							
+							//Wait for the player to press a key
+							ConsoleReadKey()    
+							
+							GameOver = True  //Change variable value to 
+							                 //indicate the game is over
+						
+						End If
+				
+						//Determine if the player's guess was too high
+						If Guess > RandomNumber Then
+							
+							ConsoleWriteLine("")
+							ConsoleWrite("Sorry, " + Guess + " is too ")
+							ConsoleWrite("high. Guess again.")
+							
+						End If
+				
+						//Determine if the player's guess was too low
+						If Guess < RandomNumber Then
+							
+							ConsoleWriteLine("")
+							ConsoleWrite("Sorry, " + Guess + " is too ")
+							ConsoleWrite("low. Guess again.")
+							
+						End If
+				
+					End If
+						
+				End While
+			
+			End While
+					
+		Else    //Execute the following statements when the player clicks 
+		        //on the No button
+			
+			//Display a message in a popup window inviting the player to 
+			//play again another time
+			Alert("OK. Perhaps another time.", cGameTitle)		
+			
+		End If	
+			
+	End Method
+
+End Program

@@ -1,0 +1,97 @@
+Program Radar
+
+	Structure Punto
+		X   As Decimal
+		Y   As Decimal
+	End Structure
+	
+	Function RotarPunto( Rotacion As Decimal, Distancia As Int ) As Punto
+	
+		Rotacion = (Rotacion - 90)
+	
+		Define theta As Decimal = (Rotacion * 3.14159 / 180.00) * -1
+		Define sin_theta As Decimal = Sin( theta )
+		Define cos_theta As Decimal = Cos( theta )
+		
+		Define Resultado As Punto
+		Resultado.X = ( Distancia * cos_theta )
+		Resultado.Y = ( (Distancia * -1) * sin_theta )
+		
+		Return Resultado
+
+	End Function
+	
+	Method DibujaLineaEnAngulo( X As Int, Y As Int, Longitud As Int, Angulo As Int )
+
+		Define NuevoPunto As Punto 
+		
+		Define I As Int	
+		For I = 1 To Longitud
+
+			NuevoPunto = RotarPunto( Angulo, 1 )
+			NuevoPunto.X = NuevoPunto.X + X
+			NuevoPunto.Y = NuevoPunto.Y + Y 
+
+			DrawLine( X, Y, NuevoPunto.X, NuevoPunto.Y )
+			X = NuevoPunto.X
+			Y = NuevoPunto.Y
+			
+		Next
+			
+	End Method
+	
+	Method Main()
+	
+		SetDeviceCoordinates()
+		
+		Color( Navy )
+		
+		Define X As Int = ScreenWidth() / 2
+		Define Y As Int = ScreenHeight() / 2 
+	
+		Define Tamanio As Int
+		If ScreenWidth() > ScreenHeight() Then
+			Tamanio = ScreenHeight()
+		Else
+			Tamanio = ScreenWidth()
+		End If
+	
+		Define I As Decimal
+		Define NuevoPunto As Punto
+		
+		Define UltimaX As Int = 0
+		Define UltimaY As Int = 0
+		
+		Define CC As Int = 200
+		
+		While CC >= 0
+		
+			ColorRGB( CC, CC, 255 )
+
+			I = 0
+			While I <= 360
+				
+				NuevoPunto = RotarPunto( I, Tamanio / 2 )
+				NuevoPunto.X = NuevoPunto.X + X
+				NuevoPunto.Y = NuevoPunto.Y + Y 
+				
+				If UltimaX <> 0 And UltimaY <> 0 Then
+					DrawLine( UltimaX, UltimaY, NuevoPunto.X, NuevoPunto.Y )
+				End If
+				
+				DrawLine( X, Y, NuevoPunto.X, NuevoPunto.Y )
+				
+				UltimaX = NuevoPunto.X
+				UltimaY = NuevoPunto.Y 
+				
+				I = I + 0.5
+				
+			End While
+		
+			CC = CC - 25
+			
+		End While
+		
+	End Method
+
+End Program
